@@ -608,37 +608,38 @@ function blockNumKeys(e){
   if(['e','E','+','-'].includes(e.key)) e.preventDefault();
 }
 
-// ── STORAGE (localStorage + Supabase sync) ──
+// ── SUPABASE CLIENT ──
 const _sb = (typeof supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL !== 'YOUR_SUPABASE_URL')
   ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
 
+// ── AUTH STATE ──
+let currentUser = null;
+
+// ── STORAGE (localStorage + Supabase sync) ──
 const Store={
   get(k){try{const v=localStorage.getItem(k);return v?{value:v}:null}catch{return null}},
   set(k,v){try{localStorage.setItem(k,v)}catch{}},
 
   async cget(k){
-    // Try Supabase first
-    if(_sb){
+    if(_sb && currentUser){
       try{
         const{data,error}=await _sb.from('budget_store').select('value').eq('key',k).single();
         if(!error&&data){
-          Store.set(k,data.value); // keep local in sync
+          Store.set(k,data.value);
           return{value:data.value};
         }
       }catch{}
     }
-    // Fallback to localStorage
     return Store.get(k);
   },
 
   async cset(k,v){
-    // Always write locally first (instant, offline-safe)
     Store.set(k,v);
-    // Then sync to Supabase
-    if(_sb){
+    if(_sb && currentUser){
       try{
-        await _sb.from('budget_store').upsert({key:k,value:v},{onConflict:'key'});
+        await _sb.from('budget_store')
+          .upsert({user_id:currentUser.id,key:k,value:v},{onConflict:'user_id,key'});
       }catch{}
     }
   }
@@ -1354,6 +1355,13 @@ function render(){
     <div style="padding:0 1.25rem">
       <div style="font-size:13px;font-weight:600;margin-bottom:2px">${MONTHS[S.data?S.data.month:new Date().getMonth()]}</div>
       <div style="font-size:11px;color:var(--t2)">${S.data?S.data.year:new Date().getFullYear()}</div>
+    </div>
+    <div style="margin-top:auto;padding:0.75rem 0.5rem 0">
+      <div class="sb-divider"></div>
+      ${currentUser?`<div style="padding:6px 1.25rem 4px;font-size:11px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(currentUser.email)}</div>`:''}
+      <button class="sb-nav-item" id="sb-logout" style="color:var(--red)">
+        <i class="ti ti-logout" style="color:var(--red)"></i>Sign out
+      </button>
     </div>`;
   } else {
     sb.innerHTML='';
@@ -1618,6 +1626,10 @@ function bind(){
     S.goals=S.goals.filter(x=>x.id!==id);
     saveGoals();render();
   });
+
+  if($('sb-logout')) $('sb-logout').addEventListener('click',async()=>{
+    await _sb.auth.signOut();
+  });
 }
 
 // ── ARCHIVE MONTH ──
@@ -1641,23 +1653,101 @@ window.addEventListener('resize',()=>{
   _resizeTimer=setTimeout(render,120);
 });
 
-// ── BOOT ──
-load().then(render);
+// ── LOGIN SCREEN ──
+function renderLogin(errMsg){
+  document.getElementById('shell').innerHTML=`
+  <div style="min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at 20% 20%,rgba(29,201,154,0.12) 0%,transparent 50%),
+    radial-gradient(ellipse at 80% 80%,rgba(96,165,250,0.08) 0%,transparent 50%),var(--bg);
+    padding:1.5rem">
+    <div style="width:100%;max-width:360px">
+      <div style="text-align:center;margin-bottom:2rem">
+        <div style="font-size:30px;font-weight:700;letter-spacing:-0.02em;margin-bottom:6px">Budget</div>
+        <div style="font-size:14px;color:var(--t2);font-weight:500">Sign in to your account</div>
+      </div>
+      <div class="card" style="padding:1.75rem">
+        <div id="l-err" style="display:${errMsg?'block':'none'};background:var(--red-dim);
+          border:1px solid rgba(240,112,112,0.2);border-radius:var(--r-xs);
+          padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--red)">${errMsg||''}</div>
+        <div class="form-row">
+          <label>Email</label>
+          <input id="l-email" type="email" placeholder="you@example.com" autocomplete="email" inputmode="email">
+        </div>
+        <div class="form-row">
+          <label>Password</label>
+          <input id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button class="btn-green" id="l-submit" style="margin-top:6px">Sign in</button>
+      </div>
+    </div>
+  </div>`;
 
-// ── CROSS-DEVICE SYNC ──
-// 1. Realtime: instantly push changes from any other device
-if(_sb){
-  _sb.channel('budget-sync')
-    .on('postgres_changes',{event:'*',schema:'public',table:'budget_store'},()=>{
-      load().then(render);
-    })
-    .subscribe();
+  async function doLogin(){
+    const email=document.getElementById('l-email').value.trim();
+    const pass=document.getElementById('l-pass').value;
+    if(!email||!pass) return;
+    const btn=document.getElementById('l-submit');
+    btn.disabled=true;btn.textContent='Signing in…';
+    const{error}=await _sb.auth.signInWithPassword({email,password:pass});
+    if(error) renderLogin(error.message);
+  }
+  document.getElementById('l-submit').addEventListener('click',doLogin);
+  document.getElementById('l-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+  setTimeout(()=>document.getElementById('l-email')?.focus(),100);
 }
 
-// 2. Visibility: re-fetch from Supabase whenever you switch back to the app
-//    (covers phone ↔ desktop: make change on one, open the other and data is fresh)
+function restoreShell(){
+  document.getElementById('shell').innerHTML=`
+    <nav id="sidebar"></nav>
+    <div id="main">
+      <div id="content"></div>
+      <nav id="nav"></nav>
+    </div>`;
+}
+
+// ── BOOT ──
+async function boot(){
+  if(!_sb){
+    // No Supabase configured — run offline with localStorage only
+    await load(); render(); return;
+  }
+
+  // Listen for login/logout events
+  _sb.auth.onAuthStateChange(async(event,session)=>{
+    if(session?.user){
+      currentUser=session.user;
+      if(!document.getElementById('content')) restoreShell();
+      await load(); render();
+      // Realtime sync
+      _sb.channel('budget-sync')
+        .on('postgres_changes',{event:'*',schema:'public',table:'budget_store'},()=>{
+          load().then(render);
+        }).subscribe();
+    } else {
+      currentUser=null;
+      renderLogin();
+    }
+  });
+
+  // Check existing session
+  const{data:{session}}=await _sb.auth.getSession();
+  if(session?.user){
+    currentUser=session.user;
+    await load(); render();
+    _sb.channel('budget-sync')
+      .on('postgres_changes',{event:'*',schema:'public',table:'budget_store'},()=>{
+        load().then(render);
+      }).subscribe();
+  } else {
+    renderLogin();
+  }
+}
+
+boot();
+
+// Visibility: re-fetch when switching back to the app
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible'&&_sb) load().then(render);
+  if(document.visibilityState==='visible'&&_sb&&currentUser) load().then(render);
 });
 
 // ── SERVICE WORKER ──
