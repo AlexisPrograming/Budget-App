@@ -175,24 +175,23 @@ body{min-height:100%;background:var(--bg)}
 .nav-item.active i{transform:scale(1.18) translateY(-1px);color:var(--green)}
 .nav-item:active{opacity:0.55}
 .nav-fab-wrap{
-  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
   background:transparent;border:none;cursor:pointer;padding:0 0 2px;font-family:var(--font);
 }
 .fab{
-  width:52px;height:52px;border-radius:50%;
-  background:linear-gradient(145deg,#1dc99a,#0ea572);
+  width:44px;height:44px;border-radius:14px;
+  background:var(--green-dim);
+  border:1.5px solid rgba(29,201,154,0.35);
   display:flex;align-items:center;justify-content:center;
-  margin-top:-22px;
-  box-shadow:0 6px 22px var(--green-glow),0 2px 8px rgba(0,0,0,0.55),0 0 0 3px rgba(9,10,13,0.96);
-  transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1),box-shadow 0.2s,background 0.15s;
+  transition:transform 0.18s cubic-bezier(0.34,1.56,0.64,1),background 0.15s,border-color 0.15s;
 }
-.nav-fab-wrap:active .fab{transform:scale(0.86);box-shadow:0 2px 10px var(--green-glow)}
-.fab i{font-size:24px;color:#001710;line-height:1}
+.nav-fab-wrap:active .fab{transform:scale(0.88)!important;background:rgba(29,201,154,0.2)}
+.fab i{font-size:22px;color:var(--green);line-height:1}
 .fab-lbl{font-size:10px;color:var(--t3);font-weight:600;letter-spacing:0.04em}
 .nav-fab-wrap.active .fab-lbl{color:var(--green)}
 .nav-fab-wrap.active .fab{
-  background:linear-gradient(145deg,#24e8ae,#1dc99a);
-  box-shadow:0 8px 28px var(--green-glow),0 2px 10px rgba(0,0,0,0.5),0 0 0 3px rgba(9,10,13,0.96);
+  background:rgba(29,201,154,0.18);
+  border-color:rgba(29,201,154,0.55);
 }
 
 /* ── ANIMATIONS ── */
@@ -335,20 +334,23 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 .b-actions{display:flex;flex-direction:column;gap:4px;margin-right:3px}
 
 /* ── NUMPAD ── */
-.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
 .nk{
-  height:62px;border-radius:13px;
-  background:rgba(255,255,255,0.055);
-  border:1px solid var(--border);
-  color:var(--text);font-size:24px;font-weight:500;font-family:var(--font);
+  height:74px;border-radius:16px;
+  background:rgba(255,255,255,0.07);
+  border:1px solid var(--border2);
+  color:var(--text);font-size:26px;font-weight:500;font-family:var(--mono);
   cursor:pointer;display:flex;align-items:center;justify-content:center;
-  transition:transform 0.08s,background 0.1s;
+  transition:transform 0.08s cubic-bezier(0.4,0,0.2,1),background 0.1s,box-shadow 0.12s;
+  box-shadow:0 2px 0 rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.07);
+  user-select:none;
 }
-.nk:active{transform:scale(0.84)!important;background:rgba(255,255,255,0.12)}
-.nk.bk{font-size:18px;background:rgba(255,255,255,0.08)}
+.nk:hover{background:rgba(255,255,255,0.11);box-shadow:0 3px 8px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.08)}
+.nk:active{transform:translateY(2px) scale(0.95)!important;background:rgba(255,255,255,0.14);box-shadow:none}
+.nk.bk{font-size:20px;background:rgba(255,255,255,0.04);border-color:var(--border)}
 @media(min-width:768px){
-  .numpad{max-width:340px;margin:10px auto}
-  .nk{height:58px}
+  .numpad{gap:12px;margin:8px 0}
+  .nk{height:82px;font-size:30px;border-radius:18px}
 }
 
 /* ── CATEGORY GRID ── */
@@ -461,9 +463,22 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 
 /* ── DESKTOP ADD LAYOUT ── */
 @media(min-width:768px){
-  .add-desktop{display:flex;flex-direction:column}
+  .add-desktop{display:grid;grid-template-columns:1fr 360px;gap:2.5rem;align-items:start}
   .add-desktop-left,.add-desktop-right{display:flex;flex-direction:column}
-  .numpad{max-width:340px;margin:10px auto}
+}
+
+/* ── MOBILE ACTION BUTTONS (bigger tap targets) ── */
+.btn-action{
+  display:inline-flex;align-items:center;justify-content:center;
+  background:var(--surface2);
+  border:1px solid var(--border2);color:var(--t2);
+  padding:10px 20px;font-size:13px;font-weight:500;
+  border-radius:30px;letter-spacing:0.02em;
+  min-height:42px;
+}
+.btn-action:hover{color:var(--text);background:rgba(255,255,255,0.12)}
+@media(min-width:768px){
+  .btn-action{padding:7px 16px;font-size:12px;min-height:unset}
 }
 </style>
 </head>
@@ -938,8 +953,8 @@ function renderHome(){
       <div class="page-sub">${d.year}</div>
     </div>
     <div style="display:flex;gap:7px;align-items:center">
-      ${c.totalInc===0?`<button class="btn" id="log-inc-home"><i class="ti ti-plus" style="margin-right:3px;font-size:11px"></i>Income</button>`:''}
-      <button class="btn" id="end-month">End month</button>
+      ${c.totalInc===0?`<button class="btn-action" id="log-inc-home"><i class="ti ti-plus" style="margin-right:4px;font-size:13px"></i>Income</button>`:''}
+      <button class="btn-action" id="end-month">End month</button>
     </div>
   </div>
 
@@ -1072,10 +1087,11 @@ function renderAdd(){
     <div class="page-header"><div class="page-title">Add expense</div></div>
     <div class="add-desktop">
       <div class="add-desktop-left">
-        ${amtDisplay}
+        <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.10em;margin-bottom:8px">Category</div>
         ${catGrid}
       </div>
       <div class="add-desktop-right">
+        ${amtDisplay}
         ${numpad}
         ${addBtn}
       </div>
@@ -1274,7 +1290,6 @@ function render(){
   if(isDesktop()){
     sb.innerHTML=`
     <div class="sb-logo">
-      <div class="sb-logo-icon"><i class="ti ti-wallet"></i></div>
       Budget
     </div>
     <div class="sb-section">Navigation</div>
