@@ -468,8 +468,50 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 
 /* ── DESKTOP ADD LAYOUT ── */
 @media(min-width:768px){
-  .add-desktop{display:grid;grid-template-columns:1fr 360px;gap:2.5rem;align-items:start}
-  .add-desktop-left,.add-desktop-right{display:flex;flex-direction:column}
+  .add-desktop{
+    display:grid;
+    grid-template-columns:1fr 400px;
+    gap:2rem;
+    align-items:start;
+  }
+  .add-desktop-left{display:flex;flex-direction:column;gap:6px}
+  .add-desktop-right{
+    display:flex;flex-direction:column;
+    background:var(--surface);
+    backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+    border:1px solid var(--border);
+    border-radius:var(--r);
+    padding:1.5rem;
+    position:sticky;top:1.5rem;
+  }
+  /* Bigger, squarer numpad keys on desktop */
+  .add-desktop-right .numpad{gap:10px;margin:10px 0}
+  .add-desktop-right .nk{
+    height:76px;font-size:28px;border-radius:14px;
+    background:rgba(255,255,255,0.06);
+  }
+  .add-desktop-right .nk:hover{background:rgba(255,255,255,0.11)}
+  .add-desktop-right .nk.bk{background:rgba(255,255,255,0.03)}
+  /* Category grid: 2 cols on desktop left panel for bigger, more tappable buttons */
+  .add-desktop-left .cat-grid{
+    grid-template-columns:repeat(2,1fr);
+    gap:8px;
+  }
+  .add-desktop-left .cat-btn{
+    flex-direction:row;gap:10px;padding:13px 14px;
+    font-size:13px;border-radius:13px;
+  }
+  .add-desktop-left .cat-btn i{font-size:20px}
+  /* Amount display on desktop */
+  .add-desktop-right .amt-display{
+    text-align:center;padding:0.5rem 0 1rem;
+    border-bottom:1px solid var(--border);
+    margin-bottom:0.5rem;
+  }
+  .add-desktop-right .amt-num{
+    font-size:56px;font-weight:700;font-family:var(--mono);
+    line-height:1;letter-spacing:-0.02em;
+  }
 }
 
 /* ── MOBILE ACTION BUTTONS (bigger tap targets) ── */
@@ -1092,11 +1134,16 @@ function renderAdd(){
     <div class="page-header"><div class="page-title">Add expense</div></div>
     <div class="add-desktop">
       <div class="add-desktop-left">
-        <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.10em;margin-bottom:8px">Category</div>
+        <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.10em;margin-bottom:4px">Category</div>
         ${catGrid}
       </div>
       <div class="add-desktop-right">
-        ${amtDisplay}
+        <div class="amt-display">
+          <div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px;font-weight:700">Amount</div>
+          <div class="amt-num" style="color:${has?'var(--text)':'var(--t3)'}">$${esc(S.amtStr)}</div>
+        </div>
+        <input id="add-note" type="text" placeholder="Note (optional — e.g. Lunch, Uber)" value="${esc(S.addNote)}"
+          maxlength="${LIMITS.TEXT_NOTE}" style="text-align:center;font-size:14px;margin-bottom:4px;font-weight:500" autocomplete="off" spellcheck="false">
         ${numpad}
         ${addBtn}
       </div>
