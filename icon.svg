@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- App icon background -->
+  <rect width="512" height="512" rx="112" fill="#090a0d"/>
+  <!-- Wallet body -->
+  <rect x="76" y="168" width="360" height="228" rx="32" fill="#1dc99a"/>
+  <!-- Wallet flap / top strip -->
+  <rect x="76" y="144" width="220" height="60" rx="18" fill="#17b389"/>
+  <!-- Coin pocket background -->
+  <rect x="298" y="222" width="116" height="90" rx="22" fill="#0a1a12"/>
+  <!-- Coin pocket circle -->
+  <circle cx="356" cy="267" r="26" fill="none" stroke="#1dc99a" stroke-width="5"/>
+  <circle cx="356" cy="267" r="10" fill="#1dc99a"/>
+</svg>

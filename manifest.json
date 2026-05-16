@@ -1,0 +1,26 @@
+{
+  "name": "Budget — Monthly Tracker",
+  "short_name": "Budget",
+  "description": "Track income, expenses, bills and savings goals monthly",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#090a0d",
+  "theme_color": "#090a0d",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
