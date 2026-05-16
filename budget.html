@@ -1058,9 +1058,7 @@ function renderBills(){
       <div class="page-title">Fixed bills</div>
       <div class="page-sub">${fmtAbs(c.totalFixed)}/mo &middot; ${c.paidCount}/${S.bills.length} paid</div>
     </div>
-    <button class="btn" id="toggle-bill-form">
-      ${S.showBillForm||S.editBillId?'Cancel':'<i class="ti ti-plus" style="margin-right:3px;font-size:11px"></i>Add bill'}
-    </button>
+    ${S.showBillForm||S.editBillId?`<button class="btn" id="toggle-bill-form">Cancel</button>`:''}
   </div>
 
   ${S.bills.length>0?`
@@ -1088,6 +1086,11 @@ function renderBills(){
     <div class="empty-sub">Add rent, subscriptions, insurance<br>— anything you pay every month</div>
   </div>`:''
   }
+
+  ${!S.showBillForm&&!S.editBillId?`
+  <button id="toggle-bill-form" class="btn-green" style="margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px">
+    <i class="ti ti-plus" style="font-size:18px"></i> Add bill
+  </button>`:''}
 
   ${c.unpaid.length>0?`
   <div class="sec-lbl"><span class="sec-lbl-l">Unpaid · ${c.unpaid.length}</span><span style="font-size:12px;font-weight:700;color:var(--amber)">${fmtAbs(c.totalUnpaid)}</span></div>
