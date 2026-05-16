@@ -995,13 +995,13 @@ function renderHome(){
   const c=calc(),d=S.data;
   return`
   <div class="page-header">
-    <div>
-      <div class="page-title">${MONTHS[d.month]}</div>
-      <div class="page-sub">${d.year}</div>
-    </div>
     <div style="display:flex;gap:7px;align-items:center">
       ${c.totalInc===0?`<button class="btn-action" id="log-inc-home"><i class="ti ti-plus" style="margin-right:4px;font-size:13px"></i>Income</button>`:''}
       <button class="btn-action" id="end-month">End month</button>
+    </div>
+    <div style="text-align:right">
+      <div class="page-title">${MONTHS[d.month]}</div>
+      <div class="page-sub">${d.year}</div>
     </div>
   </div>
 
