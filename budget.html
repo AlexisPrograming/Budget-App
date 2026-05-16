@@ -11,6 +11,8 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon.svg">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.x/dist/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/config.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
 <style>
@@ -526,18 +528,39 @@ function blockNumKeys(e){
   if(['e','E','+','-'].includes(e.key)) e.preventDefault();
 }
 
-// ── STORAGE (localStorage with cloud fallback) ──
+// ── STORAGE (localStorage + Supabase sync) ──
+const _sb = (typeof supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL !== 'YOUR_SUPABASE_URL')
+  ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  : null;
+
 const Store={
   get(k){try{const v=localStorage.getItem(k);return v?{value:v}:null}catch{return null}},
   set(k,v){try{localStorage.setItem(k,v)}catch{}},
-  // Try Cowork cloud storage if available
+
   async cget(k){
-    if(window.storage){try{return await window.storage.get(k)}catch{}}
+    // Try Supabase first
+    if(_sb){
+      try{
+        const{data,error}=await _sb.from('budget_store').select('value').eq('key',k).single();
+        if(!error&&data){
+          Store.set(k,data.value); // keep local in sync
+          return{value:data.value};
+        }
+      }catch{}
+    }
+    // Fallback to localStorage
     return Store.get(k);
   },
+
   async cset(k,v){
-    if(window.storage){try{await window.storage.set(k,v)}catch{}}
+    // Always write locally first (instant, offline-safe)
     Store.set(k,v);
+    // Then sync to Supabase
+    if(_sb){
+      try{
+        await _sb.from('budget_store').upsert({key:k,value:v},{onConflict:'key'});
+      }catch{}
+    }
   }
 };
 

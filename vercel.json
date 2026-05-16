@@ -1,6 +1,7 @@
 {
   "rewrites": [
-    { "source": "/", "destination": "/budget.html" }
+    { "source": "/", "destination": "/budget.html" },
+    { "source": "/config.js", "destination": "/api/config.js" }
   ],
   "headers": [
     {

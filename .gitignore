@@ -1,2 +1,5 @@
 /.agents
 /.claude
+
+# Local Supabase config — never push to GitHub
+/config.js
