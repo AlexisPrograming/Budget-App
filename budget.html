@@ -201,6 +201,7 @@ body{min-height:100%;background:var(--bg)}
   to{opacity:1;transform:translateY(0) scale(1)}
 }
 @keyframes popIn{from{opacity:0;transform:scale(0.72)}to{opacity:1;transform:scale(1)}}
+@keyframes spin{to{transform:rotate(360deg)}}
 @keyframes slideUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
 .anim{animation:tabIn 0.3s cubic-bezier(0.22,1,0.36,1) both}
 button{
@@ -1706,41 +1707,59 @@ function restoreShell(){
 }
 
 // ── BOOT ──
+function showBootLoader(){
+  document.getElementById('shell').innerHTML=`
+    <div style="min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:var(--bg)">
+      <div style="width:32px;height:32px;border:3px solid var(--surface-2);border-top-color:var(--green);border-radius:50%;animation:spin 0.7s linear infinite"></div>
+    </div>`;
+}
+
+let _booted=false;
+let _realtimeSub=null;
+
+function startRealtime(){
+  if(_realtimeSub) return; // already subscribed
+  _realtimeSub=_sb.channel('budget-sync')
+    .on('postgres_changes',{event:'*',schema:'public',table:'budget_store'},()=>{
+      load().then(render);
+    }).subscribe();
+}
+
 async function boot(){
   if(!_sb){
-    // No Supabase configured — run offline with localStorage only
     await load(); render(); return;
   }
 
-  // Listen for login/logout events
+  showBootLoader();
+
+  // onAuthStateChange is the single source of truth for session state
   _sb.auth.onAuthStateChange(async(event,session)=>{
     if(session?.user){
       currentUser=session.user;
-      if(!document.getElementById('content')) restoreShell();
-      await load(); render();
-      // Realtime sync
-      _sb.channel('budget-sync')
-        .on('postgres_changes',{event:'*',schema:'public',table:'budget_store'},()=>{
-          load().then(render);
-        }).subscribe();
+      if(!_booted){
+        _booted=true;
+        if(!document.getElementById('content')) restoreShell();
+        await load(); render();
+        startRealtime();
+      } else if(event==='TOKEN_REFRESHED'){
+        // token silently refreshed — no re-render needed
+      } else if(event==='SIGNED_IN'){
+        // fresh sign-in after login form
+        if(!document.getElementById('content')) restoreShell();
+        await load(); render();
+        startRealtime();
+      }
     } else {
       currentUser=null;
+      _booted=false;
+      _realtimeSub=null;
       renderLogin();
     }
   });
 
-  // Check existing session
-  const{data:{session}}=await _sb.auth.getSession();
-  if(session?.user){
-    currentUser=session.user;
-    await load(); render();
-    _sb.channel('budget-sync')
-      .on('postgres_changes',{event:'*',schema:'public',table:'budget_store'},()=>{
-        load().then(render);
-      }).subscribe();
-  } else {
-    renderLogin();
-  }
+  // getSession triggers the initial onAuthStateChange callback above;
+  // we just call it to kick off Supabase's internal session restore
+  await _sb.auth.getSession();
 }
 
 boot();
