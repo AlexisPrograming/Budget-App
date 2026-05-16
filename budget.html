@@ -41,7 +41,7 @@
   --purple:#a78bfa;
   --blur:blur(24px) saturate(160%);
   --r:18px;--r-sm:12px;--r-xs:8px;
-  --nav-h:68px;
+  --nav-h:72px;
   --sidebar:240px;
 }
 
@@ -142,54 +142,72 @@ body{min-height:100%;background:var(--bg)}
 
 /* ── MOBILE NAV ── */
 #nav{
-  display:flex;align-items:center;
-  background:rgba(9,10,13,0.92);
-  backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);
+  display:flex;align-items:stretch;
+  background:rgba(9,10,13,0.96);
+  backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%);
   border-top:1px solid var(--border);
-  /* icon area + safe area below */
-  padding:6px 0 0;
   padding-bottom:env(safe-area-inset-bottom,0px);
   flex-shrink:0;
   height:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));
 }
 .nav-item{
-  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
-  background:transparent;border:none;padding:6px 0 6px;
-  color:var(--t3);font-size:10px;font-weight:500;letter-spacing:0.03em;
-  transition:color 0.2s;cursor:pointer;font-family:var(--font);
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  background:transparent;border:none;padding:0 0 2px;
+  color:var(--t3);font-size:10px;font-weight:600;letter-spacing:0.04em;
+  transition:color 0.22s;cursor:pointer;font-family:var(--font);
+  position:relative;
 }
-.nav-item i{font-size:22px;transition:transform 0.2s,color 0.2s}
-.nav-item.active{color:var(--text)}
-.nav-item.active i{transform:scale(1.1);color:var(--green)}
-.nav-item:active{transform:scale(0.88)!important}
+/* Active indicator: small pill at top edge */
+.nav-item::after{
+  content:'';position:absolute;top:0;left:50%;
+  transform:translateX(-50%) scaleX(0);
+  width:20px;height:3px;border-radius:0 0 4px 4px;
+  background:var(--green);
+  transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+.nav-item.active::after{transform:translateX(-50%) scaleX(1)}
+.nav-item i{
+  font-size:23px;
+  transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1),color 0.22s;
+  display:block;
+}
+.nav-item.active{color:var(--green)}
+.nav-item.active i{transform:scale(1.18) translateY(-1px);color:var(--green)}
+.nav-item:active{opacity:0.55}
 .nav-fab-wrap{
-  flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
-  background:transparent;border:none;cursor:pointer;padding:0 0 6px;font-family:var(--font);
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  background:transparent;border:none;cursor:pointer;padding:0 0 2px;font-family:var(--font);
 }
 .fab{
-  width:52px;height:52px;border-radius:16px;
-  background:linear-gradient(145deg,#1dc99a,#14a07c);
+  width:52px;height:52px;border-radius:50%;
+  background:linear-gradient(145deg,#1dc99a,#0ea572);
   display:flex;align-items:center;justify-content:center;
-  margin-top:-18px;
-  box-shadow:0 4px 18px var(--green-glow),0 2px 8px rgba(0,0,0,0.5);
-  transition:transform 0.12s,box-shadow 0.2s,background 0.15s;
+  margin-top:-22px;
+  box-shadow:0 6px 22px var(--green-glow),0 2px 8px rgba(0,0,0,0.55),0 0 0 3px rgba(9,10,13,0.96);
+  transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1),box-shadow 0.2s,background 0.15s;
 }
-.nav-fab-wrap:active .fab{transform:scale(0.88)!important;box-shadow:none}
-.fab i{font-size:25px;color:#001710}
-.fab-lbl{font-size:10px;color:var(--t3);font-weight:500;letter-spacing:0.03em}
-.nav-fab-wrap.active .fab-lbl{color:var(--text)}
-.nav-fab-wrap.active .fab{background:linear-gradient(145deg,#26edb3,#1dc99a)}
+.nav-fab-wrap:active .fab{transform:scale(0.86);box-shadow:0 2px 10px var(--green-glow)}
+.fab i{font-size:24px;color:#001710;line-height:1}
+.fab-lbl{font-size:10px;color:var(--t3);font-weight:600;letter-spacing:0.04em}
+.nav-fab-wrap.active .fab-lbl{color:var(--green)}
+.nav-fab-wrap.active .fab{
+  background:linear-gradient(145deg,#24e8ae,#1dc99a);
+  box-shadow:0 8px 28px var(--green-glow),0 2px 10px rgba(0,0,0,0.5),0 0 0 3px rgba(9,10,13,0.96);
+}
 
 /* ── ANIMATIONS ── */
-@keyframes tabIn{from{opacity:0;transform:translateY(12px) scale(0.97)}to{opacity:1;transform:none}}
-@keyframes popIn{from{opacity:0;transform:scale(0.86)}to{opacity:1;transform:none}}
-@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
-.anim{animation:tabIn 0.22s cubic-bezier(0.4,0,0.2,1)}
+@keyframes tabIn{
+  from{opacity:0;transform:translateY(14px) scale(0.98)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes popIn{from{opacity:0;transform:scale(0.72)}to{opacity:1;transform:scale(1)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+.anim{animation:tabIn 0.3s cubic-bezier(0.22,1,0.36,1) both}
 button{
   font-family:var(--font);cursor:pointer;outline:none;
-  transition:transform 0.12s,opacity 0.12s,background 0.15s,box-shadow 0.2s;
+  transition:transform 0.15s cubic-bezier(0.34,1.56,0.64,1),opacity 0.12s,background 0.15s,box-shadow 0.2s;
 }
-button:active{transform:scale(0.92)!important;opacity:0.85}
+button:active{transform:scale(0.91)!important;opacity:0.8}
 
 /* ── CARDS ── */
 .card{
