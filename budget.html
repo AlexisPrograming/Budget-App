@@ -1735,24 +1735,15 @@ async function boot(){
 
   showBootLoader();
 
-  // onAuthStateChange is the single source of truth for session state
+  // onAuthStateChange handles sign-in from the login form and sign-out
   _sb.auth.onAuthStateChange(async(event,session)=>{
-    if(session?.user){
+    if(event==='SIGNED_IN'&&session?.user&&!_booted){
       currentUser=session.user;
-      if(!_booted){
-        _booted=true;
-        if(!document.getElementById('content')) restoreShell();
-        await load(); render();
-        startRealtime();
-      } else if(event==='TOKEN_REFRESHED'){
-        // token silently refreshed — no re-render needed
-      } else if(event==='SIGNED_IN'){
-        // fresh sign-in after login form
-        if(!document.getElementById('content')) restoreShell();
-        await load(); render();
-        startRealtime();
-      }
-    } else {
+      _booted=true;
+      if(!document.getElementById('content')) restoreShell();
+      await load(); render();
+      startRealtime();
+    } else if(event==='SIGNED_OUT'){
       currentUser=null;
       _booted=false;
       _realtimeSub=null;
@@ -1760,9 +1751,21 @@ async function boot(){
     }
   });
 
-  // getSession triggers the initial onAuthStateChange callback above;
-  // we just call it to kick off Supabase's internal session restore
-  await _sb.auth.getSession();
+  // getSession is the reliable source for existing session on page load
+  try{
+    const{data:{session}}=await _sb.auth.getSession();
+    if(session?.user){
+      currentUser=session.user;
+      _booted=true;
+      if(!document.getElementById('content')) restoreShell();
+      await load(); render();
+      startRealtime();
+    } else {
+      renderLogin();
+    }
+  }catch{
+    renderLogin();
+  }
 }
 
 boot();
