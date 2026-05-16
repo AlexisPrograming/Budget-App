@@ -1644,6 +1644,22 @@ window.addEventListener('resize',()=>{
 // ── BOOT ──
 load().then(render);
 
+// ── CROSS-DEVICE SYNC ──
+// 1. Realtime: instantly push changes from any other device
+if(_sb){
+  _sb.channel('budget-sync')
+    .on('postgres_changes',{event:'*',schema:'public',table:'budget_store'},()=>{
+      load().then(render);
+    })
+    .subscribe();
+}
+
+// 2. Visibility: re-fetch from Supabase whenever you switch back to the app
+//    (covers phone ↔ desktop: make change on one, open the other and data is fresh)
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&_sb) load().then(render);
+});
+
 // ── SERVICE WORKER ──
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
