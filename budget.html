@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=5, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#090a0d">
@@ -441,9 +441,9 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 
 /* ── DESKTOP ADD LAYOUT ── */
 @media(min-width:768px){
-  .add-desktop{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start}
-  .add-desktop-left{display:flex;flex-direction:column}
-  .add-desktop-right{display:flex;flex-direction:column;gap:0}
+  .add-desktop{display:flex;flex-direction:column}
+  .add-desktop-left,.add-desktop-right{display:flex;flex-direction:column}
+  .numpad{max-width:340px;margin:10px auto}
 }
 </style>
 </head>
