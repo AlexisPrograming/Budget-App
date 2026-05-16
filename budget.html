@@ -672,6 +672,7 @@ async function load(){
 
 // ── CALCULATIONS ──
 function calc(){
+  if(!S.data) S.data=emptyMonth();
   const d=S.data,b=S.bills,paidIds=d.paidBills||[];
   const totalInc=sumAmt(d.income);
   const totalVar=sumAmt(d.expenses);
