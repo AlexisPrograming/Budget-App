@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#090a0d">
 <title>Budget</title>
 <meta name="apple-mobile-web-app-title" content="Budget">
 <link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.x/dist/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
@@ -262,6 +263,10 @@ input:focus,select:focus{
 input::placeholder{color:var(--t3)}
 select option{background:#0f1117;color:var(--text)}
 label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase}
+/* Prevent iOS Safari from zooming on input focus (requires font-size >= 16px on mobile) */
+@media(max-width:767px){
+  input,select{font-size:16px}
+}
 
 /* ── PILL / BADGE ── */
 .pill{font-size:9px;padding:2px 7px;border-radius:20px;background:var(--surface2);color:var(--t2);border:1px solid var(--border)}
