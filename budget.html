@@ -1838,26 +1838,39 @@ function autoCategory(desc){
 function parseCSV(text){
   const lines=text.trim().split(/\r?\n/).filter(l=>l.trim());
   if(lines.length<2) return[];
-  // Parse header
+
   const parseRow=l=>{
     const cols=[];let cur='',inQ=false;
     for(const c of l){
       if(c==='"'){inQ=!inQ;}
-      else if(c===','&&!inQ){cols.push(cur.trim());cur='';}
+      else if(c===','&&!inQ){cols.push(cur.trim().replace(/^"|"$/g,''));cur='';}
       else cur+=c;
     }
-    cols.push(cur.trim());
+    cols.push(cur.trim().replace(/^"|"$/g,''));
     return cols;
   };
-  const headers=parseRow(lines[0]).map(h=>h.toLowerCase().replace(/[^a-z ]/g,'').trim());
+
+  // Scan up to first 20 lines to find the real header row
+  // (BofA adds a summary block before the actual data)
+  let headerIdx=-1;
+  for(let i=0;i<Math.min(lines.length,20);i++){
+    const cols=parseRow(lines[i]).map(h=>h.toLowerCase());
+    if(cols.some(h=>h.includes('date'))&&cols.some(h=>h.includes('amount'))){
+      headerIdx=i; break;
+    }
+  }
+  if(headerIdx<0) return[];
+
+  const headers=parseRow(lines[headerIdx]).map(h=>h.toLowerCase().replace(/[^a-z ]/g,'').trim());
   // Detect columns
   const di=headers.findIndex(h=>h.includes('date'));
   const descCols=['description','payee','memo','narrative','transaction'];
   const ai=headers.findIndex(h=>['amount','debit'].some(k=>h.includes(k)));
   const desi=headers.findIndex(h=>descCols.some(k=>h.includes(k)));
   if(di<0||ai<0||desi<0) return[];
+
   const rows=[];
-  for(let i=1;i<lines.length;i++){
+  for(let i=headerIdx+1;i<lines.length;i++){
     const cols=parseRow(lines[i]);
     if(cols.length<Math.max(di,ai,desi)+1) continue;
     const rawAmt=cols[ai].replace(/[$, ]/g,'').replace('−','-');
