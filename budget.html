@@ -47,8 +47,7 @@
   --sidebar:240px;
 }
 
-html{background:var(--bg);color:var(--text);font-family:var(--font);height:100%}
-body{min-height:100%;background:var(--bg)}
+html,body{background:var(--bg);color:var(--text);font-family:var(--font);height:100%;overflow:hidden}
 /* Prevent text selection on long-press (iOS Safari) */
 *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 input,textarea,select{-webkit-user-select:text;user-select:text}
@@ -58,7 +57,8 @@ button,a,[data-tab],.nk,.cat-btn,.nav-item,.imp-chk,label,[onclick]{touch-action
 /* ── LAYOUT ── */
 #shell{
   display:flex;
-  min-height:100vh;min-height:100dvh;
+  height:100vh;height:100dvh;
+  overflow:hidden;
 }
 
 /* MOBILE: single column — fills the full phone screen */
@@ -66,7 +66,8 @@ button,a,[data-tab],.nk,.cat-btn,.nav-item,.imp-chk,label,[onclick]{touch-action
 #main{
   flex:1;display:flex;flex-direction:column;
   width:100%;
-  min-height:100vh;min-height:100dvh;
+  height:100vh;height:100dvh;
+  overflow:hidden;
   position:relative;
   background:
     radial-gradient(ellipse at 15% 5%,  rgba(29,201,154,0.13) 0%,transparent 40%),
@@ -76,8 +77,8 @@ button,a,[data-tab],.nk,.cat-btn,.nav-item,.imp-chk,label,[onclick]{touch-action
 }
 #content{
   flex:1;
-  /* bottom padding = nav height + safe area so last card is never hidden */
-  padding:0.65rem 0.875rem calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 12px);
+  min-height:0; /* essential for flex child to shrink and scroll */
+  padding:0.65rem 0.875rem calc(12px);
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;
