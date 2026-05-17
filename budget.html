@@ -1515,7 +1515,15 @@ function bind(){
     $('do-import').addEventListener('click',async()=>{
       const toAdd=S.importRows.filter(r=>!r.skip);
       toAdd.forEach(r=>{
-        S.data.expenses.push({id:Date.now()+Math.random(),date:r.date,amount:r.amount,category:r.category,note:r.desc.slice(0,60)});
+        if(r.billMatch){
+          // Mark the bill as paid
+          if(!S.data.paidBills.includes(r.billMatch.id)){
+            S.data.paidBills.push(r.billMatch.id);
+          }
+        } else {
+          // Add as regular expense
+          S.data.expenses.push({id:Date.now()+Math.random(),date:r.date,amount:r.amount,category:r.category,note:r.desc.slice(0,60)});
+        }
       });
       S.tab='home';S.importRows=[];
       await saveData(); render();
@@ -1839,6 +1847,38 @@ const IMPORT_KW={
   Utilities:['electric','electricity','gas utility','water','internet','cable','verizon','at&t','t-mobile','sprint','comcast','xfinity','spectrum','cox','charter'],
 };
 
+// Extra known provider aliases for bill matching
+const BILL_ALIASES={
+  internet:['comcast','xfinity','spectrum','optimum','cox','fios','att internet','internet'],
+  phone:['t-mobile','tmobile','metro by t','metro pcs','verizon wireless','at&t wireless','sprint','boost','cricket'],
+  netflix:['netflix'],spotify:['spotify'],hulu:['hulu'],disney:['disney+','disneyplus'],
+  amazon:['amazon prime','amazon.com'],apple:['apple.com','apple tv','icloud'],
+  youtube:['youtube premium'],gym:['planet fitness','la fitness','equinox','anytime fitness'],
+  insurance:['geico','progressive','allstate','statefarm','state farm','liberty mutual'],
+  electricity:['eversource','national grid','con ed','duke energy','pge','electric'],
+  gas:['gas company','national fuel','columbia gas'],
+  water:['water dept','water utility','water bill'],
+};
+
+function matchBill(desc, bills){
+  if(!bills||!bills.length) return null;
+  const d=desc.toLowerCase().replace(/[^a-z0-9 ]/g,' ');
+
+  for(const bill of bills){
+    const bn=bill.name.toLowerCase().replace(/[^a-z0-9 ]/g,' ');
+    // Direct: any word of bill name (>2 chars) in description
+    const words=bn.split(/\s+/).filter(w=>w.length>2);
+    if(words.some(w=>d.includes(w))) return bill;
+    // Alias: check known provider aliases keyed by bill name words
+    for(const[key,aliases]of Object.entries(BILL_ALIASES)){
+      if(words.some(w=>key.includes(w)||w.includes(key))){
+        if(aliases.some(a=>d.includes(a))) return bill;
+      }
+    }
+  }
+  return null;
+}
+
 function autoCategory(desc){
   const d=desc.toLowerCase();
   for(const[cat,kws]of Object.entries(IMPORT_KW)){
@@ -1912,7 +1952,8 @@ function parseCSV(text){
       }
     }
 
-    rows.push({id:Date.now()+i,date,desc,amount:Math.abs(amt),category:autoCategory(desc),skip:false});
+    const billMatch=matchBill(desc,S.bills);
+    rows.push({id:Date.now()+i,date,desc,amount:Math.abs(amt),category:autoCategory(desc),skip:false,billMatch:billMatch||null});
   }
   return rows;
 }
@@ -1960,15 +2001,23 @@ function renderImport(){
   </div>
   <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:80px">
   ${S.importRows.map((r,i)=>`
-    <div class="card-sm" data-row="${i}" style="${r.skip?'opacity:0.4':''}display:flex;align-items:center;gap:10px;padding:10px 12px">
+    <div class="card-sm" data-row="${i}" style="${r.skip?'opacity:0.4':''}display:flex;align-items:center;gap:10px;padding:10px 12px;${r.billMatch?'border-color:rgba(29,201,154,0.35);':'' }">
       <input type="checkbox" class="imp-chk" data-i="${i}" ${r.skip?'':'checked'} style="width:16px;height:16px;accent-color:var(--green);flex-shrink:0;cursor:pointer">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.desc)}</div>
-        <div style="font-size:11px;color:var(--t2);margin-top:1px">${r.date}</div>
+        <div style="font-size:11px;margin-top:2px;display:flex;align-items:center;gap:5px">
+          ${r.billMatch
+            ?`<span style="color:var(--green);font-weight:600;display:flex;align-items:center;gap:3px"><i class="ti ti-check" style="font-size:10px"></i>Marks "${esc(r.billMatch.name)}" as paid</span>`
+            :`<span style="color:var(--t2)">${r.date}</span>`
+          }
+        </div>
       </div>
-      <select class="imp-cat" data-i="${i}" style="font-size:11px;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:3px 6px;color:var(--text);font-family:var(--font);max-width:90px">
-        ${CATS.map(c=>`<option value="${c.name}" ${r.category===c.name?'selected':''}>${c.name}</option>`).join('')}
-      </select>
+      ${r.billMatch
+        ?`<span style="font-size:10px;background:var(--green-dim);color:var(--green);border-radius:6px;padding:2px 7px;font-weight:600;flex-shrink:0">BILL</span>`
+        :`<select class="imp-cat" data-i="${i}" style="font-size:11px;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:3px 6px;color:var(--text);font-family:var(--font);max-width:90px">
+          ${CATS.map(c=>`<option value="${c.name}" ${r.category===c.name?'selected':''}>${c.name}</option>`).join('')}
+        </select>`
+      }
       <div style="font-size:13px;font-weight:600;font-family:var(--mono);color:var(--red);flex-shrink:0">-${fmt(r.amount)}</div>
     </div>`).join('')}
   </div>
