@@ -52,6 +52,8 @@ body{min-height:100%;background:var(--bg)}
 /* Prevent text selection on long-press (iOS Safari) */
 *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 input,textarea,select{-webkit-user-select:text;user-select:text}
+/* Prevent double-tap zoom on buttons and interactive elements */
+button,a,[data-tab],.nk,.cat-btn,.nav-item,.imp-chk,label,[onclick]{touch-action:manipulation}
 
 /* ── LAYOUT ── */
 #shell{
