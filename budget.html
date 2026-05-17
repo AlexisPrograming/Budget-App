@@ -658,7 +658,7 @@ const Store={
 const S={
   tab:'home',data:null,bills:[],archives:[],goals:[],
   amtStr:'0',selCat:'Food',addNote:'',justAdded:false,
-  showImport:false,importRows:[],_importSkipped:0,
+  importRows:[],_importSkipped:0,
   showBillForm:false,editBillId:null,
   billForm:{name:'',category:'Housing',amount:'',dueDay:1},
   confirmArc:false,arcView:null,
@@ -1368,7 +1368,7 @@ function render(){
   if(!ct){ console.error('render: #content missing'); return; }
   let html;
   try{
-    html=S.showImport?renderImport():{home:renderHome,add:renderAdd,bills:renderBills,overview:renderOverview}[S.tab]();
+    html={home:renderHome,add:renderAdd,bills:renderBills,overview:renderOverview,import:renderImport}[S.tab]?.()??'';
   }catch(err){
     ct.innerHTML=`<div style="padding:2rem;color:#f07070;font-family:monospace;white-space:pre-wrap">Render error (tab=${S.tab}):\n${err}</div>`;
     console.error('render error',err);
@@ -1477,8 +1477,8 @@ function bind(){
   });
 
   // CSV Import
-  if($('open-import')){ $('open-import').addEventListener('click',()=>{ S.showImport=true;S.importRows=[];_renderedTab=null;render(); }); }
-  if($('import-back')){ $('import-back').addEventListener('click',()=>{ S.showImport=false;_renderedTab=null;render(); }); }
+  if($('open-import')){ $('open-import').addEventListener('click',()=>{ S.tab='import';S.importRows=[];render(); }); }
+  if($('import-back')){ $('import-back').addEventListener('click',()=>{ S.tab='add';render(); }); }
   if($('csv-file-input')){
     $('csv-file-input').addEventListener('change',e=>{
       const file=e.target.files[0]; if(!file) return;
@@ -1505,7 +1505,7 @@ function bind(){
       toAdd.forEach(r=>{
         S.data.expenses.push({id:Date.now()+Math.random(),date:r.date,amount:r.amount,category:r.category,note:r.desc.slice(0,60)});
       });
-      S.showImport=false;S.importRows=[];
+      S.tab='home';S.importRows=[];
       await saveData(); render();
     });
   }
