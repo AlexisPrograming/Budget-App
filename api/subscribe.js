@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const sb = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY   // service role key — can bypass RLS
+  process.env.SUPABASE_SERVICE_ROLE_KEY   // service role key — can bypass RLS
 );
 
 export default async function handler(req, res) {
