@@ -626,7 +626,7 @@ const Store={
   async cget(k){
     if(_sb && currentUser){
       try{
-        const{data,error}=await _sb.from('budget_store').select('value').eq('key',k).single();
+        const{data,error}=await _sb.from('budget_store').select('value').eq('key',k).maybeSingle();
         if(!error&&data){
           Store.set(k,data.value);
           return{value:data.value};
@@ -1326,7 +1326,15 @@ function renderOverview(){
 function render(){
   if(!S.data) return;
   const ct=document.getElementById('content');
-  const html={home:renderHome,add:renderAdd,bills:renderBills,overview:renderOverview}[S.tab]();
+  if(!ct){ console.error('render: #content missing'); return; }
+  let html;
+  try{
+    html={home:renderHome,add:renderAdd,bills:renderBills,overview:renderOverview}[S.tab]();
+  }catch(err){
+    ct.innerHTML=`<div style="padding:2rem;color:#f07070;font-family:monospace;white-space:pre-wrap">Render error (tab=${S.tab}):\n${err}</div>`;
+    console.error('render error',err);
+    return;
+  }
   ct.innerHTML=html;
   ct.classList.remove('anim');void ct.offsetHeight;ct.classList.add('anim');
 
@@ -1723,8 +1731,13 @@ function startRealtime(){
 async function launchApp(user){
   currentUser=user;
   if(!document.getElementById('content')) restoreShell();
-  await load();
-  render();
+  try{ await load(); }catch(e){ console.error('load failed',e); }
+  try{ render(); }catch(e){
+    const ct=document.getElementById('content');
+    if(ct) ct.innerHTML=`<div style="padding:2rem;color:#f07070;font-family:monospace;white-space:pre-wrap">Boot error:\n${e}</div>`;
+    console.error('render failed',e);
+    return;
+  }
   startRealtime();
 }
 
@@ -1736,9 +1749,10 @@ async function boot(){
 
   // Then silently check for an existing session (reads localStorage, no network needed)
   try{
-    const{data:{session}}=await _sb.auth.getSession();
+    const{data:{session},error}=await _sb.auth.getSession();
+    if(error) console.error('getSession error',error);
     if(session?.user) await launchApp(session.user);
-  }catch{}
+  }catch(e){ console.error('boot getSession threw',e); }
 
   // Handle future sign-in / sign-out events
   _sb.auth.onAuthStateChange(async(event,session)=>{
