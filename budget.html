@@ -49,6 +49,9 @@
 
 html{background:var(--bg);color:var(--text);font-family:var(--font);height:100%}
 body{min-height:100%;background:var(--bg)}
+/* Prevent text selection on long-press (iOS Safari) */
+*{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea,select{-webkit-user-select:text;user-select:text}
 
 /* ── LAYOUT ── */
 #shell{
