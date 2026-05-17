@@ -658,6 +658,7 @@ const Store={
 const S={
   tab:'home',data:null,bills:[],archives:[],goals:[],
   amtStr:'0',selCat:'Food',addNote:'',justAdded:false,
+  showImport:false,importRows:[],
   showBillForm:false,editBillId:null,
   billForm:{name:'',category:'Housing',amount:'',dueDay:1},
   confirmArc:false,arcView:null,
@@ -1177,6 +1178,11 @@ function renderAdd(){
           maxlength="${LIMITS.TEXT_NOTE}" style="text-align:center;font-size:14px;margin-bottom:4px;font-weight:500" autocomplete="off" spellcheck="false">
         ${numpad}
         ${addBtn}
+        <div style="text-align:center;margin-top:10px">
+          <button id="open-import" style="background:none;border:none;color:var(--t3);font-size:12px;font-family:var(--font);cursor:pointer;padding:6px 12px;border-radius:8px;display:inline-flex;align-items:center;gap:5px;transition:color .15s">
+            <i class="ti ti-file-import" style="font-size:14px"></i>Import from bank CSV
+          </button>
+        </div>
       </div>
     </div>`;
   }
@@ -1186,7 +1192,12 @@ function renderAdd(){
   ${amtDisplay}
   ${catGrid}
   ${numpad}
-  ${addBtn}`;
+  ${addBtn}
+  <div style="text-align:center;margin-top:8px;margin-bottom:4px">
+    <button id="open-import" style="background:none;border:none;color:var(--t3);font-size:12px;font-family:var(--font);cursor:pointer;padding:6px 12px;border-radius:8px;display:inline-flex;align-items:center;gap:5px">
+      <i class="ti ti-file-import" style="font-size:14px"></i>Import from bank CSV
+    </button>
+  </div>`;
 }
 
 // ── TAB: BILLS ──
@@ -1357,7 +1368,7 @@ function render(){
   if(!ct){ console.error('render: #content missing'); return; }
   let html;
   try{
-    html={home:renderHome,add:renderAdd,bills:renderBills,overview:renderOverview}[S.tab]();
+    html=S.showImport?renderImport():{home:renderHome,add:renderAdd,bills:renderBills,overview:renderOverview}[S.tab]();
   }catch(err){
     ct.innerHTML=`<div style="padding:2rem;color:#f07070;font-family:monospace;white-space:pre-wrap">Render error (tab=${S.tab}):\n${err}</div>`;
     console.error('render error',err);
@@ -1464,6 +1475,30 @@ function bind(){
     S.data.income=S.data.income.filter(x=>x.id!==id);
     saveData();render();
   });
+
+  // CSV Import
+  if($('open-import')){ $('open-import').addEventListener('click',()=>{ S.showImport=true;S.importRows=[];_renderedTab=null;render(); }); }
+  if($('import-back')){ $('import-back').addEventListener('click',()=>{ S.showImport=false;_renderedTab=null;render(); }); }
+  if($('csv-file-input')){
+    $('csv-file-input').addEventListener('change',e=>{
+      const file=e.target.files[0]; if(!file) return;
+      const reader=new FileReader();
+      reader.onload=ev=>{ S.importRows=parseCSV(ev.target.result); render(); };
+      reader.readAsText(file);
+    });
+  }
+  on('.imp-chk','change',e=>{ const i=+e.currentTarget.dataset.i; S.importRows[i].skip=!e.currentTarget.checked; render(); });
+  on('.imp-cat','change',e=>{ const i=+e.currentTarget.dataset.i; S.importRows[i].category=e.currentTarget.value; render(); });
+  if($('do-import')){
+    $('do-import').addEventListener('click',async()=>{
+      const toAdd=S.importRows.filter(r=>!r.skip);
+      toAdd.forEach(r=>{
+        S.data.expenses.push({id:Date.now()+Math.random(),date:r.date,amount:r.amount,category:r.category,note:r.desc.slice(0,60)});
+      });
+      S.showImport=false;S.importRows=[];
+      await saveData(); render();
+    });
+  }
 
   // Numpad
   on('.nk-btn','click',e=>{
@@ -1769,6 +1804,128 @@ function restoreShell(){
       <div id="content"></div>
       <nav id="nav"></nav>
     </div>`;
+}
+
+// ── CSV IMPORT ──
+const IMPORT_KW={
+  Food:['restaurant','pizza','burger','taco','sushi','cafe','coffee','starbucks','dunkin','chipotle','mcdonald','subway','doordash','grubhub','ubereats','instacart','whole foods','trader joe','grocery','diner','panera','wendy','chick-fil','popeyes','domino','food','bakery','deli'],
+  Transport:['uber','lyft','taxi','transit','mta','bart','metro','parking','toll','shell','bp','chevron','exxon','citgo','sunoco','speedway','gas station','fuel','amtrak','greyhound','airline','delta','united','american air','jetblue','southwest','spirit','frontier'],
+  Shopping:['amazon','walmart','target','costco','ebay','etsy','best buy','apple store','ikea','home depot','lowes','macys','nordstrom','tj maxx','marshalls','ross','dollar','five below','walgreens','cvs','rite aid','shopify'],
+  Entertainment:['netflix','spotify','hulu','disney','hbo','apple tv','youtube','twitch','steam','playstation','xbox','ticketmaster','cinema','movie','amc','regal','concert','theater','museum','gym','planet fitness','la fitness'],
+  Health:['pharmacy','hospital','clinic','doctor','dentist','medical','urgent care','optometrist','lab','quest','labcorp','cvs pharmacy','walgreens pharmacy','prescription','dental'],
+  Housing:['rent','mortgage','apartment','lease','airbnb','vrbo','hoa','storage','u-haul','moving'],
+  Utilities:['electric','electricity','gas utility','water','internet','cable','verizon','at&t','t-mobile','sprint','comcast','xfinity','spectrum','cox','charter'],
+};
+
+function autoCategory(desc){
+  const d=desc.toLowerCase();
+  for(const[cat,kws]of Object.entries(IMPORT_KW)){
+    if(kws.some(k=>d.includes(k))) return cat;
+  }
+  return 'Other';
+}
+
+function parseCSV(text){
+  const lines=text.trim().split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2) return[];
+  // Parse header
+  const parseRow=l=>{
+    const cols=[];let cur='',inQ=false;
+    for(const c of l){
+      if(c==='"'){inQ=!inQ;}
+      else if(c===','&&!inQ){cols.push(cur.trim());cur='';}
+      else cur+=c;
+    }
+    cols.push(cur.trim());
+    return cols;
+  };
+  const headers=parseRow(lines[0]).map(h=>h.toLowerCase().replace(/[^a-z ]/g,'').trim());
+  // Detect columns
+  const di=headers.findIndex(h=>h.includes('date'));
+  const descCols=['description','payee','memo','narrative','transaction'];
+  const ai=headers.findIndex(h=>['amount','debit'].some(k=>h.includes(k)));
+  const desi=headers.findIndex(h=>descCols.some(k=>h.includes(k)));
+  if(di<0||ai<0||desi<0) return[];
+  const rows=[];
+  for(let i=1;i<lines.length;i++){
+    const cols=parseRow(lines[i]);
+    if(cols.length<Math.max(di,ai,desi)+1) continue;
+    const rawAmt=cols[ai].replace(/[$, ]/g,'').replace('−','-');
+    const amt=parseFloat(rawAmt);
+    if(isNaN(amt)||amt>=0) continue; // skip credits/income
+    const desc=cols[desi].replace(/\*/g,' ').replace(/\s+/g,' ').trim();
+    if(!desc) continue;
+    // Parse date MM/DD/YYYY or YYYY-MM-DD
+    let date=cols[di].trim();
+    const m1=date.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    const m2=date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(m1) date=`${m1[3]}-${m1[1]}-${m1[2]}`;
+    else if(!m2) date=todayStr();
+    rows.push({id:Date.now()+i,date,desc,amount:Math.abs(amt),category:autoCategory(desc),skip:false});
+  }
+  return rows;
+}
+
+function renderImport(){
+  if(!S.importRows.length) return`
+  <div class="page-header">
+    <button id="import-back" style="background:none;border:none;color:var(--t2);font-size:13px;font-family:var(--font);cursor:pointer;display:flex;align-items:center;gap:5px;padding:0">
+      <i class="ti ti-arrow-left"></i>Back
+    </button>
+    <div class="page-title">Import CSV</div>
+    <div style="width:50px"></div>
+  </div>
+  <div style="border:2px dashed var(--border);border-radius:16px;padding:3rem 1.5rem;text-align:center;margin-bottom:1rem">
+    <i class="ti ti-file-spreadsheet" style="font-size:40px;color:var(--t3);display:block;margin-bottom:12px"></i>
+    <div style="font-size:15px;font-weight:600;margin-bottom:6px">Select your bank CSV file</div>
+    <div style="font-size:12px;color:var(--t2);margin-bottom:20px;line-height:1.5">
+      Supports Bank of America, Chase, and most banks.<br>Download your statement as CSV from your bank's website.
+    </div>
+    <label style="display:inline-block;padding:10px 22px;background:var(--green-dim);color:var(--green);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid rgba(29,201,154,0.3)">
+      <i class="ti ti-upload" style="margin-right:6px"></i>Choose file
+      <input type="file" id="csv-file-input" accept=".csv,.txt" style="display:none">
+    </label>
+  </div>
+  <div style="background:var(--surface);border-radius:12px;padding:1rem;font-size:12px;color:var(--t2);line-height:1.7">
+    <div style="font-weight:600;color:var(--text);margin-bottom:4px">📥 How to download from Bank of America:</div>
+    <div>1. Login → Accounts → select account</div>
+    <div>2. Click <b>Download</b> → select <b>CSV format</b></div>
+    <div>3. Choose date range → Download</div>
+    <div>4. Upload that file here</div>
+  </div>`;
+
+  const total=S.importRows.filter(r=>!r.skip).reduce((s,r)=>s+r.amount,0);
+  const count=S.importRows.filter(r=>!r.skip).length;
+  return`
+  <div class="page-header" style="margin-bottom:.75rem">
+    <button id="import-back" style="background:none;border:none;color:var(--t2);font-size:13px;font-family:var(--font);cursor:pointer;display:flex;align-items:center;gap:5px;padding:0">
+      <i class="ti ti-arrow-left"></i>Back
+    </button>
+    <div style="text-align:center">
+      <div class="page-title" style="font-size:18px">Review transactions</div>
+      <div style="font-size:11px;color:var(--t2)">${S.importRows.length} found · ${count} selected</div>
+    </div>
+    <div style="width:50px"></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:80px">
+  ${S.importRows.map((r,i)=>`
+    <div class="card-sm" style="${r.skip?'opacity:0.4':''}display:flex;align-items:center;gap:10px;padding:10px 12px">
+      <input type="checkbox" class="imp-chk" data-i="${i}" ${r.skip?'':'checked'} style="width:16px;height:16px;accent-color:var(--green);flex-shrink:0;cursor:pointer">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.desc)}</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:1px">${r.date}</div>
+      </div>
+      <select class="imp-cat" data-i="${i}" style="font-size:11px;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:3px 6px;color:var(--text);font-family:var(--font);max-width:90px">
+        ${CATS.map(c=>`<option value="${c.name}" ${r.category===c.name?'selected':''}>${c.name}</option>`).join('')}
+      </select>
+      <div style="font-size:13px;font-weight:600;font-family:var(--mono);color:var(--red);flex-shrink:0">-${fmt(r.amount)}</div>
+    </div>`).join('')}
+  </div>
+  <div style="position:fixed;bottom:0;left:0;right:0;padding:1rem;background:linear-gradient(transparent,var(--bg) 40%);z-index:10">
+    <button id="do-import" style="width:100%;padding:15px;font-size:15px;font-weight:600;border-radius:var(--r-sm);background:var(--green);color:#001710;border:none;cursor:pointer;font-family:var(--font)">
+      Import ${count} expense${count!==1?'s':''} · ${fmt(total)}
+    </button>
+  </div>`;
 }
 
 // ── BOOT ──
