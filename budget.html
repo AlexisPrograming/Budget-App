@@ -279,6 +279,7 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 
 /* ── PAGE HEADER ── */
 .page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem}
+@media(min-width:768px){#profile-wrap{display:none}}
 .page-title{font-size:22px;font-weight:700;letter-spacing:-0.02em}
 .page-sub{font-size:12px;color:var(--t2);margin-top:2px;font-weight:500}
 
@@ -1013,9 +1014,25 @@ function renderHome(){
       ${c.totalInc===0?`<button class="btn-action" id="log-inc-home"><i class="ti ti-plus" style="margin-right:4px;font-size:13px"></i>Income</button>`:''}
       <button class="btn-action" id="end-month">End month</button>
     </div>
-    <div style="text-align:right">
-      <div class="page-title">${MONTHS[d.month]}</div>
-      <div class="page-sub">${d.year}</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="text-align:right">
+        <div class="page-title">${MONTHS[d.month]}</div>
+        <div class="page-sub">${d.year}</div>
+      </div>
+      <div style="position:relative" id="profile-wrap">
+        <button id="profile-btn" style="width:34px;height:34px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="ti ti-user" style="font-size:16px;color:var(--t2)"></i>
+        </button>
+        <div id="profile-menu" style="display:none;position:absolute;right:0;top:40px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:6px;min-width:170px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,0.4)">
+          ${currentUser?`<div style="padding:8px 12px 6px;font-size:11px;color:var(--t3);border-bottom:1px solid var(--border);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(currentUser.email)}</div>`:''}
+          <button id="menu-notif" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
+            <i class="ti ti-bell" id="menu-bell-icon" style="font-size:16px"></i><span id="menu-notif-label">Reminders</span>
+          </button>
+          <button id="menu-logout" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--red);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
+            <i class="ti ti-logout" style="font-size:16px;color:var(--red)"></i>Sign out
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1661,8 +1678,24 @@ function bind(){
     await _sb.auth.signOut();
   });
 
+  // Mobile profile menu
+  if($('profile-btn')){
+    $('profile-btn').addEventListener('click',e=>{
+      e.stopPropagation();
+      const m=$('profile-menu');
+      m.style.display=m.style.display==='none'?'block':'none';
+    });
+    document.addEventListener('click',()=>{
+      const m=$('profile-menu');
+      if(m) m.style.display='none';
+    },{once:true});
+  }
+  if($('menu-logout')) $('menu-logout').addEventListener('click',async()=>{ await _sb?.auth.signOut(); });
+  if($('menu-notif'))  $('menu-notif').addEventListener('click',()=>{ enableNotifications?.(); });
+
   // Update notification button state after every render
   updateNotifButton?.();
+  updateMenuNotifButton?.();
 }
 
 // ── ARCHIVE MONTH ──
@@ -1831,6 +1864,23 @@ async function updateNotifButton(){
   } else {
     icon.className='ti ti-bell';
     icon.style.color='';
+    label.textContent='Reminders';
+  }
+}
+
+async function updateMenuNotifButton(){
+  const icon=document.getElementById('menu-bell-icon');
+  const label=document.getElementById('menu-notif-label');
+  if(!icon) return;
+  const status=await getNotifStatus();
+  if(status==='subscribed'){
+    icon.className='ti ti-bell-check'; icon.style.color='var(--green)';
+    label.textContent='Reminders on';
+  } else if(status==='denied'){
+    icon.className='ti ti-bell-off'; icon.style.color='var(--t3)';
+    label.textContent='Blocked';
+  } else {
+    icon.className='ti ti-bell'; icon.style.color='';
     label.textContent='Reminders';
   }
 }
