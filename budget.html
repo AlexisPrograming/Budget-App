@@ -78,7 +78,8 @@ button,a,[data-tab],.nk,.cat-btn,.nav-item,.imp-chk,label,[onclick]{touch-action
 #content{
   flex:1;
   min-height:0; /* essential for flex child to shrink and scroll */
-  padding:0.65rem 0.875rem calc(12px);
+  /* top: below Dynamic Island/notch + extra breathing room */
+  padding:calc(env(safe-area-inset-top, 0px) + 1rem) 0.875rem 12px;
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;
