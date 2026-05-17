@@ -2078,11 +2078,48 @@ document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&_sb&&currentUser) load().then(render);
 });
 
-// ── SERVICE WORKER ──
+// ── SERVICE WORKER + AUTO-UPDATE ──
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  window.addEventListener('load', async ()=>{
+    const reg = await navigator.serviceWorker.register('/sw.js').catch(()=>null);
+    if(!reg) return;
+
+    // Show update banner whenever a new SW is waiting
+    function checkForWaiting(r){
+      if(r.waiting){
+        showUpdateBanner(r.waiting);
+      }
+    }
+
+    // New SW installed while page is open
+    reg.addEventListener('updatefound',()=>{
+      const newSW = reg.installing;
+      newSW.addEventListener('statechange',()=>{
+        if(newSW.state==='installed' && navigator.serviceWorker.controller){
+          showUpdateBanner(newSW);
+        }
+      });
+    });
+
+    // SW was already waiting when page opened
+    checkForWaiting(reg);
+
+    // Reload when SW takes control (after skipWaiting)
+    let refreshing=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(!refreshing){ refreshing=true; window.location.reload(); }
+    });
   });
+}
+
+function showUpdateBanner(sw){
+  if(document.getElementById('update-banner')) return;
+  const b=document.createElement('div');
+  b.id='update-banner';
+  b.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:9999;background:#1dc99a;color:#001710;padding:11px 20px;border-radius:50px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(29,201,154,0.5);display:flex;align-items:center;gap:8px;white-space:nowrap;font-family:var(--font)';
+  b.innerHTML='<i class="ti ti-refresh" style="font-size:16px"></i>New version — tap to update';
+  b.addEventListener('click',()=>{ sw.postMessage({type:'SKIP_WAITING'}); });
+  document.body.appendChild(b);
 }
 </script>
 </body>

@@ -1,4 +1,4 @@
-const CACHE = 'budget-v4';
+const CACHE = 'budget-v5';
 
 const PRECACHE = [
   '/',
@@ -32,6 +32,11 @@ self.addEventListener('activate', e => {
       ))
       .then(() => self.clients.claim())
   );
+});
+
+// ── SKIP WAITING ON DEMAND ──
+self.addEventListener('message', e => {
+  if(e.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 // ── PUSH NOTIFICATIONS ──
