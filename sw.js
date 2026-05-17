@@ -1,4 +1,4 @@
-const CACHE = 'budget-v3';
+const CACHE = 'budget-v4';
 
 const PRECACHE = [
   '/',
@@ -32,6 +32,25 @@ self.addEventListener('activate', e => {
       ))
       .then(() => self.clients.claim())
   );
+});
+
+// ── PUSH NOTIFICATIONS ──
+self.addEventListener('push', e => {
+  let data = { title: 'Budget', body: '' };
+  try { data = e.data.json(); } catch {}
+  e.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icon-180.png',
+      badge: '/icon-180.png',
+      data
+    })
+  );
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(clients.openWindow(e.notification.data?.url || '/'));
 });
 
 self.addEventListener('fetch', e => {

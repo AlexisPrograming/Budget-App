@@ -1386,6 +1386,9 @@ function render(){
     <div style="margin-top:auto;padding:0.75rem 0.5rem 0">
       <div class="sb-divider"></div>
       ${currentUser?`<div style="padding:6px 1.25rem 4px;font-size:11px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(currentUser.email)}</div>`:''}
+      <button class="sb-nav-item" id="sb-notif" title="Bill reminders">
+        <i class="ti ti-bell" id="sb-bell-icon"></i><span id="sb-notif-label">Reminders</span>
+      </button>
       <button class="sb-nav-item" id="sb-logout" style="color:var(--red)">
         <i class="ti ti-logout" style="color:var(--red)"></i>Sign out
       </button>
@@ -1657,6 +1660,9 @@ function bind(){
   if($('sb-logout')) $('sb-logout').addEventListener('click',async()=>{
     await _sb.auth.signOut();
   });
+
+  // Update notification button state after every render
+  updateNotifButton?.();
 }
 
 // ── ARCHIVE MONTH ──
@@ -1782,6 +1788,73 @@ async function boot(){
 }
 
 boot();
+
+// ── PUSH NOTIFICATIONS ──
+const VAPID_PUBLIC = 'BEPVdgmhXk5usxJFiyGuoDyFIP6R0t8B_X2AklSlES2TWkd3MTUS0etR0Iw8DozuFNtPjNQrhuYL3XThwfN-Mv8';
+
+function urlBase64ToUint8Array(b64){
+  const pad=b64+'='.repeat((4-b64.length%4)%4);
+  const raw=atob(pad.replace(/-/g,'+').replace(/_/g,'/'));
+  return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
+
+async function getNotifStatus(){
+  if(!('Notification' in window)||!('serviceWorker' in navigator)) return 'unsupported';
+  const perm=Notification.permission;
+  if(perm==='denied') return 'denied';
+  if(perm==='granted'){
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.getSubscription();
+    return sub?'subscribed':'granted';
+  }
+  return 'default';
+}
+
+async function updateNotifButton(){
+  const btn=document.getElementById('sb-notif');
+  const icon=document.getElementById('sb-bell-icon');
+  const label=document.getElementById('sb-notif-label');
+  if(!btn) return;
+  const status=await getNotifStatus();
+  if(status==='subscribed'){
+    icon.className='ti ti-bell-check';
+    icon.style.color='var(--green)';
+    label.textContent='Reminders on';
+  } else if(status==='denied'){
+    icon.className='ti ti-bell-off';
+    icon.style.color='var(--t3)';
+    label.textContent='Blocked';
+    btn.style.opacity='0.5';
+    btn.disabled=true;
+  } else if(status==='unsupported'){
+    btn.style.display='none';
+  } else {
+    icon.className='ti ti-bell';
+    icon.style.color='';
+    label.textContent='Reminders';
+  }
+}
+
+async function enableNotifications(){
+  if(!currentUser) return;
+  const reg=await navigator.serviceWorker.ready;
+  const perm=await Notification.requestPermission();
+  if(perm!=='granted'){ updateNotifButton(); return; }
+  const sub=await reg.pushManager.subscribe({
+    userVisibleOnly:true,
+    applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC)
+  });
+  await fetch('/api/subscribe',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({subscription:sub.toJSON(),user_id:currentUser.id})
+  });
+  updateNotifButton();
+}
+
+document.addEventListener('click',e=>{
+  if(e.target.closest('#sb-notif')) enableNotifications();
+});
 
 // Visibility: re-fetch when switching back to the app
 document.addEventListener('visibilitychange',()=>{

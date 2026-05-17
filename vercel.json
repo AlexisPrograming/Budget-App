@@ -18,5 +18,11 @@
         { "key": "X-Frame-Options", "value": "DENY" }
       ]
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/notify",
+      "schedule": "0 9 * * *"
+    }
   ]
 }
