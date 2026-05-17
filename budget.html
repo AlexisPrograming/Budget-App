@@ -1768,13 +1768,19 @@ async function arcMonth(){
   const d=S.data,c=calc();
   const key=`budget:archive:${d.year}-${String(d.month+1).padStart(2,'0')}`;
   const label=`${MONTHS[d.month]} ${d.year}`;
+  // Save full archive of the current month
   await Store.cset(key,JSON.stringify({...d,label,fixedBillsSnapshot:S.bills}));
   const newIdx=[...S.archives.filter(a=>a.key!==key),
     {key,label,totalIncome:c.totalInc,totalExpenses:c.totalVar,totalFixed:c.totalFixed}];
   S.archives=newIdx;
   await Store.cset('budget:archives_idx',JSON.stringify(newIdx));
-  S.data=emptyMonth();S.confirmArc=false;
-  saveData();render();
+  // Advance to next month (not new Date() which could stay in same month)
+  const nextMonth=d.month===11?0:d.month+1;
+  const nextYear=d.month===11?d.year+1:d.year;
+  S.data={month:nextMonth,year:nextYear,income:[],expenses:[],paidBills:[]};
+  S.confirmArc=false;
+  await saveData();
+  render();
 }
 
 // ── RESPONSIVE RE-RENDER ──
