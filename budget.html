@@ -1710,62 +1710,46 @@ function restoreShell(){
 }
 
 // ── BOOT ──
-function showBootLoader(){
-  document.getElementById('shell').innerHTML=`
-    <div style="min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:var(--bg)">
-      <div style="width:32px;height:32px;border:3px solid var(--surface-2);border-top-color:var(--green);border-radius:50%;animation:spin 0.7s linear infinite"></div>
-    </div>`;
-}
-
-let _booted=false;
 let _realtimeSub=null;
 
 function startRealtime(){
-  if(_realtimeSub) return; // already subscribed
+  if(_realtimeSub) return;
   _realtimeSub=_sb.channel('budget-sync')
     .on('postgres_changes',{event:'*',schema:'public',table:'budget_store'},()=>{
       load().then(render);
     }).subscribe();
 }
 
+async function launchApp(user){
+  currentUser=user;
+  if(!document.getElementById('content')) restoreShell();
+  await load();
+  render();
+  startRealtime();
+}
+
 async function boot(){
-  if(!_sb){
-    await load(); render(); return;
-  }
+  if(!_sb){ await load(); render(); return; }
 
-  showBootLoader();
+  // Always show login immediately — no blank spinner risk
+  renderLogin();
 
-  // onAuthStateChange handles sign-in from the login form and sign-out
+  // Then silently check for an existing session (reads localStorage, no network needed)
+  try{
+    const{data:{session}}=await _sb.auth.getSession();
+    if(session?.user) await launchApp(session.user);
+  }catch{}
+
+  // Handle future sign-in / sign-out events
   _sb.auth.onAuthStateChange(async(event,session)=>{
-    if(event==='SIGNED_IN'&&session?.user&&!_booted){
-      currentUser=session.user;
-      _booted=true;
-      if(!document.getElementById('content')) restoreShell();
-      await load(); render();
-      startRealtime();
+    if((event==='SIGNED_IN'||event==='TOKEN_REFRESHED')&&session?.user&&!currentUser){
+      await launchApp(session.user);
     } else if(event==='SIGNED_OUT'){
       currentUser=null;
-      _booted=false;
       _realtimeSub=null;
       renderLogin();
     }
   });
-
-  // getSession is the reliable source for existing session on page load
-  try{
-    const{data:{session}}=await _sb.auth.getSession();
-    if(session?.user){
-      currentUser=session.user;
-      _booted=true;
-      if(!document.getElementById('content')) restoreShell();
-      await load(); render();
-      startRealtime();
-    } else {
-      renderLogin();
-    }
-  }catch{
-    renderLogin();
-  }
 }
 
 boot();
