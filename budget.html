@@ -1878,12 +1878,28 @@ function parseCSV(text){
     if(isNaN(amt)||amt>=0) continue; // skip credits/income
     const desc=cols[desi].replace(/\*/g,' ').replace(/\s+/g,' ').trim();
     if(!desc) continue;
-    // Parse date MM/DD/YYYY or YYYY-MM-DD
-    let date=cols[di].trim();
-    const m1=date.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    const m2=date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if(m1) date=`${m1[3]}-${m1[1]}-${m1[2]}`;
-    else if(!m2) date=todayStr();
+
+    // Parse posting date (MM/DD/YYYY or YYYY-MM-DD)
+    let postingRaw=cols[di].trim();
+    const m1=postingRaw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    const m2=postingRaw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    let postingDate=postingRaw;
+    let postingYear=new Date().getFullYear();
+    if(m1){ postingDate=`${m1[3]}-${m1[1]}-${m1[2]}`; postingYear=+m1[3]; }
+    else if(m2){ postingYear=+m2[1]; }
+
+    // BofA embeds the real purchase date as MM/DD in the description
+    // e.g. "PAYPAL *UBER 04/30 PURCHASE..." → actual date is Apr 30
+    let date=postingDate;
+    const descDate=desc.match(/\b(\d{2})\/(\d{2})\b/);
+    if(descDate){
+      date=`${postingYear}-${descDate[1]}-${descDate[2]}`;
+      // If the extracted month is Dec and posting is Jan, use previous year
+      if(+descDate[1]===12 && new Date(postingDate).getMonth()===0){
+        date=`${postingYear-1}-${descDate[1]}-${descDate[2]}`;
+      }
+    }
+
     rows.push({id:Date.now()+i,date,desc,amount:Math.abs(amt),category:autoCategory(desc),skip:false});
   }
   return rows;
