@@ -658,7 +658,7 @@ const Store={
 const S={
   tab:'home',data:null,bills:[],archives:[],goals:[],
   amtStr:'0',selCat:'Food',addNote:'',justAdded:false,
-  showImport:false,importRows:[],
+  showImport:false,importRows:[],_importSkipped:0,
   showBillForm:false,editBillId:null,
   billForm:{name:'',category:'Housing',amount:'',dueDay:1},
   confirmArc:false,arcView:null,
@@ -1483,7 +1483,17 @@ function bind(){
     $('csv-file-input').addEventListener('change',e=>{
       const file=e.target.files[0]; if(!file) return;
       const reader=new FileReader();
-      reader.onload=ev=>{ S.importRows=parseCSV(ev.target.result); render(); };
+      reader.onload=ev=>{
+        const all=parseCSV(ev.target.result);
+        // Only keep transactions from the current open month
+        const m=S.data.month,y=S.data.year;
+        S.importRows=all.filter(r=>{
+          const d=new Date(r.date+'T00:00:00');
+          return d.getFullYear()===y && d.getMonth()===m;
+        });
+        S._importSkipped=all.length-S.importRows.length;
+        render();
+      };
       reader.readAsText(file);
     });
   }
@@ -1903,7 +1913,7 @@ function renderImport(){
     </button>
     <div style="text-align:center">
       <div class="page-title" style="font-size:18px">Review transactions</div>
-      <div style="font-size:11px;color:var(--t2)">${S.importRows.length} found · ${count} selected</div>
+      <div style="font-size:11px;color:var(--t2)">${S.importRows.length} found · ${count} selected${S._importSkipped?` · <span style="color:var(--amber)">${S._importSkipped} other months skipped</span>`:''}</div>
     </div>
     <div style="width:50px"></div>
   </div>
