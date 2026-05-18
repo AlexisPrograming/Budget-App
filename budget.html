@@ -664,6 +664,7 @@ const Store={
 // ── APP STATE ──
 const S={
   tab:'home',data:null,bills:[],archives:[],goals:[],
+  dailyLimit:0,showDailyLimitEdit:false,
   amtStr:'0',selCat:'Food',addNote:'',justAdded:false,
   importRows:[],_importSkipped:0,
   showBillForm:false,editBillId:null,
@@ -678,11 +679,13 @@ const S={
 async function saveData(){await Store.cset('budget:current',JSON.stringify(S.data))}
 async function saveBills(){await Store.cset('budget:fixed_bills',JSON.stringify(S.bills))}
 async function saveGoals(){await Store.cset('budget:goals',JSON.stringify(S.goals))}
+async function saveDailyLimit(){await Store.cset('budget:daily_limit',String(S.dailyLimit))}
 async function load(){
   try{const r=await Store.cget('budget:current');    S.data=r?JSON.parse(r.value):emptyMonth()}catch{S.data=emptyMonth()}
   try{const r=await Store.cget('budget:fixed_bills');S.bills=r?JSON.parse(r.value):[]}catch{S.bills=[]}
   try{const r=await Store.cget('budget:archives_idx');S.archives=r?JSON.parse(r.value):[]}catch{S.archives=[]}
   try{const r=await Store.cget('budget:goals');      S.goals=r?JSON.parse(r.value):[]}catch{S.goals=[]}
+  try{const r=await Store.cget('budget:daily_limit');S.dailyLimit=r?parseFloat(r.value)||0:0}catch{S.dailyLimit=0}
 }
 
 // ── CALCULATIONS ──
@@ -1014,6 +1017,146 @@ function insightChips(c){
 }
 
 // ── TAB: HOME ──
+// ── DAILY LIMIT CARD ──
+function renderDailyLimitCard(c){
+  const lim=S.dailyLimit;
+  const daysInMonth=new Date(S.data.year,S.data.month+1,0).getDate();
+
+  if(S.showDailyLimitEdit){
+    return`<div class="card" style="margin-bottom:8px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+        <i class="ti ti-calendar-stats" style="font-size:15px;color:var(--blue)"></i>Daily spending limit
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="daily-limit-inp" type="number" placeholder="e.g. 40" value="${lim||''}" inputmode="decimal" style="flex:1">
+        <button class="btn-green" id="save-daily-limit" style="width:auto;padding:11px 18px;font-size:13px">Save</button>
+        <button class="btn" id="cancel-daily-limit" style="padding:11px 12px">✕</button>
+      </div>
+      <div style="font-size:11px;color:var(--t2);margin-top:8px">Set how much you want to spend per day on personal things (food, shopping, etc.)</div>
+    </div>`;
+  }
+
+  if(!lim){
+    return`<div class="card" id="set-daily-limit-card" style="margin-bottom:8px;cursor:pointer">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="cat-icon" style="background:rgba(96,165,250,.12)"><i class="ti ti-calendar-stats" style="color:#60a5fa;font-size:16px"></i></div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600">Set a daily spending limit</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:2px">Track daily budget & project monthly costs</div>
+        </div>
+        <i class="ti ti-chevron-right" style="font-size:14px;color:var(--t3)"></i>
+      </div>
+    </div>`;
+  }
+
+  const today=c.todayTotal;
+  const pct=Math.min(1,today/lim);
+  const col=pct>=1?'var(--red)':pct>=0.75?'var(--amber)':'var(--green)';
+  const projected=c.avgDailySpend>0?Math.round(c.avgDailySpend*daysInMonth*100)/100:0;
+  const limitMonthly=lim*daysInMonth;
+  const suggested=c.totalInc>0?Math.max(0,(c.totalInc-c.totalFixed)/daysInMonth):0;
+  const projCol=projected>limitMonthly?'var(--red)':projected>limitMonthly*0.85?'var(--amber)':'var(--green)';
+
+  let tip='';
+  if(pct>=1) tip=`<div style="font-size:11px;color:var(--red);margin-top:7px;font-weight:600"><i class="ti ti-alert-triangle" style="font-size:11px"></i> Over today's limit by ${fmtAbs(today-lim)}</div>`;
+  else if(suggested>0&&lim>suggested*1.1) tip=`<div style="font-size:11px;color:var(--amber);margin-top:7px"><i class="ti ti-info-circle" style="font-size:11px"></i> Suggested max: ${fmtAbs(suggested)}/day based on income after bills</div>`;
+  else tip=`<div style="font-size:11px;color:var(--t2);margin-top:7px">${c.daysLeft} days left · avg ${fmtAbs(c.avgDailySpend)}/day so far</div>`;
+
+  return`<div class="card" style="margin-bottom:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px">
+        <i class="ti ti-calendar-stats" style="font-size:15px;color:var(--blue)"></i>Daily limit
+      </span>
+      <button class="btn-icon" id="edit-daily-limit" style="padding:4px 8px"><i class="ti ti-pencil" style="font-size:13px"></i></button>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px">
+      <div>
+        <div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Today</div>
+        <div style="font-size:24px;font-weight:700;font-family:var(--mono);color:${col};line-height:1">${fmtAbs(today)}</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:3px">of ${fmtAbs(lim)} limit</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Monthly projection</div>
+        <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:${projCol}">${projected>0?fmtAbs(projected):'—'}</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:3px">budget: ${fmtAbs(limitMonthly)}/mo</div>
+      </div>
+    </div>
+    <div class="prog-track"><div class="prog-track-fill" style="width:${pct*100}%;background:${col};transition:width .4s"></div></div>
+    ${tip}
+  </div>`;
+}
+
+// ── MONTHLY ADVICE CARD ──
+function renderAdvice(c){
+  if(c.totalInc===0) return '';
+  const tips=[];
+  const daysInMonth=new Date(S.data.year,S.data.month+1,0).getDate();
+  const lim=S.dailyLimit;
+
+  // Balance / projection
+  if(c.balance<0){
+    tips.push({icon:'ti-alert-triangle',col:'var(--red)',title:'You\'re over budget',body:`You\'re ${fmtAbs(-c.balance)} in the red. Stick to essentials only for the rest of the month.`});
+  } else if(c.daysLeft>0&&c.avgDailySpend>0){
+    const projEnd=c.balance-(c.avgDailySpend*c.daysLeft);
+    if(projEnd>=0) tips.push({icon:'ti-trending-up',col:'var(--green)',title:'On track to finish positive',body:`At your current pace you\'ll end the month with ~${fmtAbs(projEnd)} left. Keep it up!`});
+    else tips.push({icon:'ti-trending-down',col:'var(--amber)',title:'Watch your spending',body:`At your current pace you might run out in ~${Math.floor(c.balance/c.avgDailySpend)} days. Try to cut back a bit.`});
+  }
+
+  // Daily limit warning
+  if(lim>0&&c.avgDailySpend>lim){
+    const extra=(c.avgDailySpend-lim)*daysInMonth;
+    tips.push({icon:'ti-coin',col:'var(--amber)',title:'Averaging over daily limit',body:`You\'re spending ${fmtAbs(c.avgDailySpend)}/day vs your ${fmtAbs(lim)} limit — that\'s ${fmtAbs(extra)} extra projected this month.`});
+  }
+
+  // Top category
+  if(c.byCat.length>0&&c.totalVar>0){
+    const top=c.byCat[0];
+    const pct=Math.round(top.total/c.totalVar*100);
+    if(pct>35){
+      const advice={
+        'Food':'Try cooking at home a few more times a week — it can easily cut this by 20–30%.',
+        'Transport':'Look into carpooling or public transit for some trips to reduce this.',
+        'Shopping':'Try the 24-hour rule: wait a day before any non-essential purchase.',
+        'Entertainment':'Look for free or lower-cost alternatives — parks, streaming, etc.',
+        'Health':'Check if any recurring health costs can be covered by insurance.',
+      };
+      tips.push({icon:'ti-chart-pie',col:'var(--blue)',title:`${top.name} is ${pct}% of spending`,body:advice[top.name]||`${top.name} is your biggest category at ${fmtAbs(top.total)}. Worth reviewing if you can reduce it.`});
+    }
+  }
+
+  // Bills ratio
+  if(c.totalFixed>0){
+    const billPct=Math.round(c.totalFixed/c.totalInc*100);
+    if(billPct>50) tips.push({icon:'ti-receipt',col:'var(--amber)',title:`Fixed bills are ${billPct}% of income`,body:'Review your subscriptions and recurring services — canceling even one or two can make a difference.'});
+  }
+
+  // Unpaid bills
+  if(c.unpaid.length>0){
+    const next=[...c.unpaid].sort((a,b)=>a.dueDay-b.dueDay)[0];
+    tips.push({icon:'ti-bell',col:'var(--amber)',title:`${c.unpaid.length} bill${c.unpaid.length>1?'s':''} still unpaid`,body:`Next up: ${esc(next.name)} on day ${next.dueDay} (${fmtAbs(next.amount)}). Make sure you have enough ready.`});
+  }
+
+  // Good savings at end of month
+  if(c.daysLeft<=7&&c.balance>c.totalInc*0.15){
+    tips.push({icon:'ti-piggy-bank',col:'var(--green)',title:'Great month!',body:`You saved ${Math.round(c.balance/c.totalInc*100)}% of your income. Consider moving ${fmtAbs(Math.floor(c.balance*0.5))} to savings.`});
+  }
+
+  if(tips.length===0) return '';
+
+  return`<div class="card" style="margin-bottom:8px">
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+      <i class="ti ti-bulb" style="font-size:15px;color:var(--amber)"></i>Monthly insights
+    </div>
+    ${tips.map((t,i)=>`<div style="${i>0?'border-top:1px solid var(--border);padding-top:9px;margin-top:9px':''}display:flex;align-items:flex-start;gap:10px">
+      <i class="ti ${t.icon}" style="font-size:15px;color:${t.col};flex-shrink:0;margin-top:1px"></i>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px">${t.title}</div>
+        <div style="font-size:12px;color:var(--t2);line-height:1.5">${t.body}</div>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
 function renderHome(){
   const c=calc(),d=S.data;
   return`
@@ -1060,6 +1203,10 @@ function renderHome(){
   </div>
 
   ${insightChips(c)}
+
+  ${renderDailyLimitCard(c)}
+
+  ${renderAdvice(c)}
 
   ${S.bills.length>0?`
   <div class="card" id="snap-bills" style="cursor:pointer;padding:.9rem 1.125rem;margin-bottom:10px">
@@ -1457,6 +1604,15 @@ function bind(){
   if($('log-inc-home')) $('log-inc-home').addEventListener('click',()=>{S.showInc=true;render()});
   if($('show-inc-ov'))  $('show-inc-ov').addEventListener('click',()=>{S.showInc=!S.showInc;render()});
   if($('arc-back'))     $('arc-back').addEventListener('click',()=>{S.arcView=null;render()});
+  // Daily limit handlers
+  if($('set-daily-limit-card')) $('set-daily-limit-card').addEventListener('click',()=>{S.showDailyLimitEdit=true;render()});
+  if($('edit-daily-limit'))     $('edit-daily-limit').addEventListener('click',()=>{S.showDailyLimitEdit=true;render()});
+  if($('cancel-daily-limit'))   $('cancel-daily-limit').addEventListener('click',()=>{S.showDailyLimitEdit=false;render()});
+  if($('save-daily-limit'))     $('save-daily-limit').addEventListener('click',()=>{
+    const v=parseFloat($('daily-limit-inp').value)||0;
+    S.dailyLimit=v;S.showDailyLimitEdit=false;
+    saveDailyLimit();render();
+  });
 
   // Income form
   if($('inc-src'))   $('inc-src').addEventListener('input',e=>S.incForm.source=e.target.value);
