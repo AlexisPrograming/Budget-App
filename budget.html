@@ -1048,26 +1048,67 @@ function insightChips(c){
     </div>`).join('')}</div>`:'';
 }
 
+// ── SAFE LIMIT CALCULATOR ──
+function computeSafeLimit(){
+  const c=calc();
+  const daysInMonth=new Date(S.data.year,S.data.month+1,0).getDate();
+  const inc=c.totalInc;
+  const bills=c.totalFixed;
+  // Monthly goal contributions (only goals with a deadline have a requiredPerMonth)
+  const goalNeeds=S.goals.reduce((sum,g)=>{
+    const p=planGoal(g);
+    return sum+(p.requiredPerMonth||0);
+  },0);
+  const disposable=Math.max(0,inc-bills-goalNeeds);
+  const safePerDay=inc>0?disposable/daysInMonth:0;
+  return{inc,bills,goalNeeds,disposable,safePerDay,daysInMonth};
+}
+
 // ── TAB: HOME ──
 // ── DAILY LIMIT CARD ──
 function renderDailyLimitCard(c){
   const lim=S.dailyLimit;
   const now=new Date();
-  const dayOfMonth=now.getDate();                                      // e.g. 17
-  const daysInMonth=new Date(S.data.year,S.data.month+1,0).getDate(); // e.g. 31
-  const daysLeft=daysInMonth-dayOfMonth;                               // days remaining after today
+  const dayOfMonth=now.getDate();
+  const daysInMonth=new Date(S.data.year,S.data.month+1,0).getDate();
+  const daysLeft=daysInMonth-dayOfMonth;
 
   if(S.showDailyLimitEdit){
+    const sl=computeSafeLimit();
+    const hasIncome=sl.inc>0;
+    const rows=[
+      {label:'Monthly income',val:sl.inc,col:'var(--green)',sign:'+'},
+      {label:'Fixed bills',val:sl.bills,col:'var(--red)',sign:'−'},
+      {label:'Goal contributions',val:sl.goalNeeds,col:'var(--amber)',sign:'−'},
+      {label:'Available to spend',val:sl.disposable,col:'var(--text)',sign:'=',bold:true},
+    ];
+    const breakdown=hasIncome?`
+      <div style="background:var(--surface2);border-radius:var(--r-xs);padding:10px 12px;margin-bottom:10px">
+        ${rows.map(r=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;${r.bold?'border-top:1px solid var(--border);margin-top:4px;padding-top:6px':''}">
+            <span style="font-size:11px;color:var(--t2)">${r.sign} ${r.label}</span>
+            <span style="font-size:11px;font-weight:${r.bold?700:500};font-family:var(--mono);color:${r.col}">${fmtAbs(r.val)}</span>
+          </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0 0">
+          <span style="font-size:11px;color:var(--t2)">÷ ${sl.daysInMonth} days</span>
+          <span style="font-size:12px;font-weight:700;font-family:var(--mono);color:var(--green)">= ${fmtAbs(sl.safePerDay)}/day suggested</span>
+        </div>
+      </div>`:'';
+
     return`<div class="card" style="margin-bottom:8px">
       <div style="font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px">
         <i class="ti ti-calendar-stats" style="font-size:15px;color:var(--blue)"></i>Daily spending limit
       </div>
+      ${breakdown}
       <div style="display:flex;gap:8px;align-items:center">
-        <input id="daily-limit-inp" type="number" placeholder="e.g. 40" value="${lim||''}" inputmode="decimal" style="flex:1">
+        <input id="daily-limit-inp" type="number" placeholder="${hasIncome?fmtAbs(sl.safePerDay).replace('$',''):'e.g. 25'}"
+          value="${lim||''}" inputmode="decimal" style="flex:1">
         <button class="btn-green" id="save-daily-limit" style="width:auto;padding:11px 18px;font-size:13px">Save</button>
         <button class="btn" id="cancel-daily-limit" style="padding:11px 12px">✕</button>
       </div>
-      <div style="font-size:11px;color:var(--t2);margin-top:8px">How much do you want to spend per day on personal things (food, shopping, transport, etc.)?</div>
+      <div id="daily-limit-warn" style="margin-top:8px;font-size:11px;color:var(--t2)">
+        ${hasIncome?`Suggested: <strong style="color:var(--green)">${fmtAbs(sl.safePerDay)}/day</strong> after bills & goals`:'Add income first to see a personalized suggestion'}
+      </div>
     </div>`;
   }
 
@@ -1098,7 +1139,12 @@ function renderDailyLimitCard(c){
   const shouldPct = Math.min(1, shouldHaveSpent / monthlyBudget);
 
   // Rollover: unspent limit days accumulate (positive = banked, negative = overspent)
-  const banked = shouldHaveSpent - actualSpent; // + means saved, - means overspent vs pace
+  const banked = shouldHaveSpent - actualSpent;
+
+  // Safe limit check
+  const sl = computeSafeLimit();
+  const limTooHigh = sl.inc > 0 && lim > sl.safePerDay * 1.05; // >5% over suggestion
+  const limCantCoverBills = sl.inc > 0 && (lim * daysInMonth + sl.bills) > sl.inc;
 
   // Colors
   const overBudgetSoFar = actualSpent > shouldHaveSpent;
@@ -1162,6 +1208,23 @@ function renderDailyLimitCard(c){
       <div class="prog-track-fill" style="width:${todayPct*100}%;background:${todayCol};height:100%"></div>
     </div>
     ${todayRemaining>0&&daysLeft>0?`<div style="font-size:10px;color:var(--t3);margin-top:4px">If you don't spend the remaining ${fmtAbs(todayRemaining)} today, it adds to your banked savings</div>`:''}
+
+    ${limCantCoverBills?`
+    <div style="margin-top:10px;padding:9px 12px;background:rgba(240,112,112,0.1);border:1px solid rgba(240,112,112,0.25);border-radius:var(--r-xs);display:flex;gap:8px;align-items:flex-start">
+      <i class="ti ti-alert-triangle" style="color:var(--red);font-size:14px;flex-shrink:0;margin-top:1px"></i>
+      <div style="font-size:11px;color:var(--red);line-height:1.5">
+        <strong>Limit too high — can't cover bills.</strong> At ${fmtAbs(lim)}/day your spending alone would be ${fmtAbs(lim*daysInMonth)}/mo, leaving nothing for your ${fmtAbs(sl.bills)} in fixed bills.
+        <span style="color:var(--t2)"> Tap ✏️ to adjust.</span>
+      </div>
+    </div>`:limTooHigh?`
+    <div style="margin-top:10px;padding:9px 12px;background:rgba(240,184,64,0.08);border:1px solid rgba(240,184,64,0.2);border-radius:var(--r-xs);display:flex;gap:8px;align-items:flex-start">
+      <i class="ti ti-info-circle" style="color:var(--amber);font-size:14px;flex-shrink:0;margin-top:1px"></i>
+      <div style="font-size:11px;color:var(--t2);line-height:1.5">
+        Your safe daily is <strong style="color:var(--green)">${fmtAbs(sl.safePerDay)}</strong> after bills${sl.goalNeeds>0?` & goals (${fmtAbs(sl.goalNeeds)}/mo)`:''}.
+        At ${fmtAbs(lim)}/day you may fall short on ${sl.goalNeeds>0?'savings goals or ':''} unexpected expenses.
+        <span style="color:var(--t3)"> Tap ✏️ to adjust.</span>
+      </div>
+    </div>`:''}
   </div>`;
 }
 
@@ -1687,6 +1750,28 @@ function bind(){
   if($('set-daily-limit-card')) $('set-daily-limit-card').addEventListener('click',()=>{S.showDailyLimitEdit=true;render()});
   if($('edit-daily-limit'))     $('edit-daily-limit').addEventListener('click',()=>{S.showDailyLimitEdit=true;render()});
   if($('cancel-daily-limit'))   $('cancel-daily-limit').addEventListener('click',()=>{S.showDailyLimitEdit=false;render()});
+  if($('daily-limit-inp')){
+    $('daily-limit-inp').addEventListener('input',e=>{
+      const v=parseFloat(e.target.value)||0;
+      const warn=$('daily-limit-warn');
+      if(!warn) return;
+      const sl=computeSafeLimit();
+      if(!sl.inc){warn.innerHTML='Add income first to see a personalized suggestion';warn.style.color='var(--t2)';return;}
+      if(v<=0){warn.innerHTML=`Suggested: <strong style="color:var(--green)">${fmtAbs(sl.safePerDay)}/day</strong> after bills & goals`;warn.style.color='var(--t2)';return;}
+      const limMonthly=v*sl.daysInMonth;
+      if(limMonthly+sl.bills>sl.inc){
+        warn.innerHTML=`<i class="ti ti-alert-triangle"></i> <strong>Too high</strong> — at $${v}/day you can't cover your ${fmtAbs(sl.bills)} in bills`;
+        warn.style.color='var(--red)';
+      } else if(v>sl.safePerDay*1.05){
+        const diff=v-sl.safePerDay;
+        warn.innerHTML=`<i class="ti ti-alert-circle"></i> ${fmtAbs(diff)}/day over safe limit — may affect goals${sl.goalNeeds>0?' ('+fmtAbs(sl.goalNeeds)+'/mo needed)':''}`;
+        warn.style.color='var(--amber)';
+      } else {
+        warn.innerHTML=`<i class="ti ti-circle-check"></i> Looks good — within your safe daily of ${fmtAbs(sl.safePerDay)}`;
+        warn.style.color='var(--green)';
+      }
+    });
+  }
   if($('save-daily-limit'))     $('save-daily-limit').addEventListener('click',()=>{
     const v=parseFloat($('daily-limit-inp').value)||0;
     S.dailyLimit=v;S.showDailyLimitEdit=false;
