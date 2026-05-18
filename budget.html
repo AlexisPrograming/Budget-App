@@ -1089,7 +1089,8 @@ function renderDailyLimitCard(c){
   const shouldHaveSpent = lim * dayOfMonth;          // what you "should" have spent through today
   const actualSpent = c.totalVar;                    // what you've actually spent (all month)
   const remaining = monthlyBudget - actualSpent;     // budget left for rest of month
-  const safePerDay = daysLeft > 0 ? remaining / daysLeft : 0; // how much/day you can spend from now
+  const forwardBudget = lim * daysLeft;             // simple: $25 × days left (what the user cares about)
+  const safePerDay = daysLeft > 0 ? remaining / daysLeft : 0; // adjusted daily from actual spending
 
   // Progress bar: actual spent vs full monthly budget
   const pct = Math.min(1, actualSpent / monthlyBudget);
@@ -1139,14 +1140,14 @@ function renderDailyLimitCard(c){
         <div style="font-size:9px;color:var(--t2);margin-top:3px">${banked>=0?'saved from limit':'over pace'}</div>
       </div>
       <div style="flex:1;background:var(--surface2);border-radius:var(--r-xs);padding:9px 10px">
-        <div style="font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Remaining</div>
-        <div style="font-size:17px;font-weight:700;font-family:var(--mono);color:${remCol}">${fmtAbs(Math.max(0,remaining))}</div>
-        <div style="font-size:9px;color:var(--t2);margin-top:3px">${daysLeft} days left</div>
+        <div style="font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Next ${daysLeft}d</div>
+        <div style="font-size:17px;font-weight:700;font-family:var(--mono);color:var(--blue)">${fmtAbs(forwardBudget)}</div>
+        <div style="font-size:9px;color:var(--t2);margin-top:3px">${fmtAbs(lim)}/day × ${daysLeft}</div>
       </div>
       <div style="flex:1;background:var(--surface2);border-radius:var(--r-xs);padding:9px 10px">
-        <div style="font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Can spend</div>
+        <div style="font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Real/day</div>
         <div style="font-size:17px;font-weight:700;font-family:var(--mono);color:${remCol}">${daysLeft>0?fmtAbs(Math.max(0,safePerDay)):'—'}</div>
-        <div style="font-size:9px;color:var(--t2);margin-top:3px">per day now</div>
+        <div style="font-size:9px;color:var(--t2);margin-top:3px">adjusted for spending</div>
       </div>
     </div>
 
