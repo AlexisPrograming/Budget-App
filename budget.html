@@ -87,7 +87,10 @@ button,a,[data-tab],.nk,.cat-btn,.nav-item,.imp-chk,label,[onclick]{touch-action
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;
+  scrollbar-width:none;
+  -ms-overflow-style:none;
 }
+#content::-webkit-scrollbar{display:none}
 
 /* DESKTOP: sidebar + main */
 @media(min-width:768px){
