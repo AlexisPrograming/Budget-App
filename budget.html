@@ -1119,7 +1119,7 @@ function renderDailyLimitCard(c){
       ${breakdown}
       <div style="display:flex;gap:8px;align-items:center">
         <input id="daily-limit-inp" type="number" placeholder="${hasIncome?fmtAbs(sl.safePerDay).replace('$',''):'e.g. 25'}"
-          value="${lim||''}" inputmode="decimal" style="flex:1">
+          value="${lim||''}" inputmode="decimal" min="1" max="${hasIncome?Math.ceil(sl.inc):9999}" step="0.01" style="flex:1">
         <button class="btn-green" id="save-daily-limit" style="width:auto;padding:11px 18px;font-size:13px">Save</button>
         <button class="btn" id="cancel-daily-limit" style="padding:11px 12px">✕</button>
       </div>
@@ -1830,6 +1830,25 @@ function bind(){
   }
   if($('save-daily-limit'))     $('save-daily-limit').addEventListener('click',()=>{
     const v=parseFloat($('daily-limit-inp').value)||0;
+    const warn=$('daily-limit-warn');
+    const sl=computeSafeLimit();
+
+    // Hard blocks
+    if(v<=0){
+      if(warn){warn.innerHTML='<i class="ti ti-alert-triangle"></i> Enter a valid amount greater than $0';warn.style.color='var(--red)';}
+      return;
+    }
+    if(sl.inc>0&&v>=sl.inc){
+      if(warn){warn.innerHTML=`<i class="ti ti-alert-triangle"></i> Can't set limit to more than your monthly income (${fmtAbs(sl.inc)})`;warn.style.color='var(--red)';}
+      return;
+    }
+    const limMonthly=v*sl.daysInMonth;
+    if(sl.inc>0&&limMonthly+sl.bills>sl.inc){
+      if(warn){warn.innerHTML=`<i class="ti ti-alert-triangle"></i> At $${v}/day you won't have enough to cover your ${fmtAbs(sl.bills)} in fixed bills. Max safe: ${fmtAbs(Math.floor((sl.inc-sl.bills)/sl.daysInMonth))}/day`;warn.style.color='var(--red)';}
+      return;
+    }
+
+    // Save (with optional soft warning already shown inline)
     S.dailyLimit=v;S.showDailyLimitEdit=false;
     saveDailyLimit();render();
   });
