@@ -1020,7 +1020,10 @@ function insightChips(c){
 // ── DAILY LIMIT CARD ──
 function renderDailyLimitCard(c){
   const lim=S.dailyLimit;
-  const daysInMonth=new Date(S.data.year,S.data.month+1,0).getDate();
+  const now=new Date();
+  const dayOfMonth=now.getDate();                                      // e.g. 17
+  const daysInMonth=new Date(S.data.year,S.data.month+1,0).getDate(); // e.g. 31
+  const daysLeft=daysInMonth-dayOfMonth;                               // days remaining after today
 
   if(S.showDailyLimitEdit){
     return`<div class="card" style="margin-bottom:8px">
@@ -1032,7 +1035,7 @@ function renderDailyLimitCard(c){
         <button class="btn-green" id="save-daily-limit" style="width:auto;padding:11px 18px;font-size:13px">Save</button>
         <button class="btn" id="cancel-daily-limit" style="padding:11px 12px">✕</button>
       </div>
-      <div style="font-size:11px;color:var(--t2);margin-top:8px">Set how much you want to spend per day on personal things (food, shopping, etc.)</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:8px">How much do you want to spend per day on personal things (food, shopping, transport, etc.)?</div>
     </div>`;
   }
 
@@ -1042,47 +1045,92 @@ function renderDailyLimitCard(c){
         <div class="cat-icon" style="background:rgba(96,165,250,.12)"><i class="ti ti-calendar-stats" style="color:#60a5fa;font-size:16px"></i></div>
         <div style="flex:1">
           <div style="font-size:13px;font-weight:600">Set a daily spending limit</div>
-          <div style="font-size:11px;color:var(--t2);margin-top:2px">Track daily budget & project monthly costs</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:2px">Track daily budget & see how much you'll have left</div>
         </div>
         <i class="ti ti-chevron-right" style="font-size:14px;color:var(--t3)"></i>
       </div>
     </div>`;
   }
 
-  const today=c.todayTotal;
-  const pct=Math.min(1,today/lim);
-  const col=pct>=1?'var(--red)':pct>=0.75?'var(--amber)':'var(--green)';
-  const projected=c.avgDailySpend>0?Math.round(c.avgDailySpend*daysInMonth*100)/100:0;
-  const limitMonthly=lim*daysInMonth;
-  const suggested=c.totalInc>0?Math.max(0,(c.totalInc-c.totalFixed)/daysInMonth):0;
-  const projCol=projected>limitMonthly?'var(--red)':projected>limitMonthly*0.85?'var(--amber)':'var(--green)';
+  // ── Core numbers ──
+  const monthlyBudget = lim * daysInMonth;          // total budget for the whole month
+  const shouldHaveSpent = lim * dayOfMonth;          // what you "should" have spent through today
+  const actualSpent = c.totalVar;                    // what you've actually spent (all month)
+  const remaining = monthlyBudget - actualSpent;     // budget left for rest of month
+  const safePerDay = daysLeft > 0 ? remaining / daysLeft : 0; // how much/day you can spend from now
 
-  let tip='';
-  if(pct>=1) tip=`<div style="font-size:11px;color:var(--red);margin-top:7px;font-weight:600"><i class="ti ti-alert-triangle" style="font-size:11px"></i> Over today's limit by ${fmtAbs(today-lim)}</div>`;
-  else if(suggested>0&&lim>suggested*1.1) tip=`<div style="font-size:11px;color:var(--amber);margin-top:7px"><i class="ti ti-info-circle" style="font-size:11px"></i> Suggested max: ${fmtAbs(suggested)}/day based on income after bills</div>`;
-  else tip=`<div style="font-size:11px;color:var(--t2);margin-top:7px">${c.daysLeft} days left · avg ${fmtAbs(c.avgDailySpend)}/day so far</div>`;
+  // Progress bar: actual spent vs full monthly budget
+  const pct = Math.min(1, actualSpent / monthlyBudget);
+  // Marker: where you "should be" today
+  const shouldPct = Math.min(1, shouldHaveSpent / monthlyBudget);
+
+  // Colors
+  const overBudgetSoFar = actualSpent > shouldHaveSpent;
+  const barCol = actualSpent >= monthlyBudget ? 'var(--red)' : overBudgetSoFar ? 'var(--amber)' : 'var(--green)';
+  const remCol = remaining < 0 ? 'var(--red)' : safePerDay < lim * 0.7 ? 'var(--amber)' : 'var(--green)';
+
+  // Today's spending
+  const todaySpent = c.todayTotal;
+  const todayPct = Math.min(1, todaySpent / lim);
+  const todayCol = todaySpent >= lim ? 'var(--red)' : todaySpent >= lim * 0.75 ? 'var(--amber)' : 'var(--green)';
+
+  // Status message
+  let statusMsg='';
+  if(remaining<0){
+    statusMsg=`<span style="color:var(--red);font-weight:600"><i class="ti ti-alert-triangle" style="font-size:11px"></i> Over monthly budget by ${fmtAbs(-remaining)}</span>`;
+  } else if(overBudgetSoFar){
+    const overBy=actualSpent-shouldHaveSpent;
+    statusMsg=`<span style="color:var(--amber)"><i class="ti ti-alert-circle" style="font-size:11px"></i> ${fmtAbs(overBy)} ahead of pace — slow down a bit</span>`;
+  } else {
+    const underBy=shouldHaveSpent-actualSpent;
+    statusMsg=`<span style="color:var(--green)"><i class="ti ti-circle-check" style="font-size:11px"></i> ${fmtAbs(underBy)} under pace — great!</span>`;
+  }
 
   return`<div class="card" style="margin-bottom:8px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <span style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px">
         <i class="ti ti-calendar-stats" style="font-size:15px;color:var(--blue)"></i>Daily limit
+        <span style="font-size:11px;font-weight:500;color:var(--t2)">${fmtAbs(lim)}/day</span>
       </span>
       <button class="btn-icon" id="edit-daily-limit" style="padding:4px 8px"><i class="ti ti-pencil" style="font-size:13px"></i></button>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px">
-      <div>
-        <div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Today</div>
-        <div style="font-size:24px;font-weight:700;font-family:var(--mono);color:${col};line-height:1">${fmtAbs(today)}</div>
-        <div style="font-size:11px;color:var(--t2);margin-top:3px">of ${fmtAbs(lim)} limit</div>
+
+    <!-- Monthly progress bar with "should be here" marker -->
+    <div style="margin-bottom:6px;display:flex;justify-content:space-between;font-size:10px;color:var(--t2)">
+      <span>Day ${dayOfMonth} of ${daysInMonth}</span>
+      <span>${fmtAbs(actualSpent)} of ${fmtAbs(monthlyBudget)} budget</span>
+    </div>
+    <div class="prog-track" style="position:relative;height:8px;margin-bottom:4px">
+      <div class="prog-track-fill" style="width:${pct*100}%;background:${barCol};height:100%;transition:width .4s"></div>
+      <!-- "should be here" marker line -->
+      <div style="position:absolute;top:-3px;bottom:-3px;left:${shouldPct*100}%;width:2px;background:rgba(255,255,255,0.35);border-radius:2px"></div>
+    </div>
+    <div style="font-size:10px;color:var(--t3);margin-bottom:10px">↑ where you should be today</div>
+
+    <!-- Two stats: remaining + safe daily -->
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <div style="flex:1;background:var(--surface2);border-radius:var(--r-xs);padding:10px 12px">
+        <div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Remaining</div>
+        <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:${remCol}">${fmtAbs(Math.max(0,remaining))}</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:3px">for ${daysLeft} days left</div>
       </div>
-      <div style="text-align:right">
-        <div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Monthly projection</div>
-        <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:${projCol}">${projected>0?fmtAbs(projected):'—'}</div>
-        <div style="font-size:11px;color:var(--t2);margin-top:3px">budget: ${fmtAbs(limitMonthly)}/mo</div>
+      <div style="flex:1;background:var(--surface2);border-radius:var(--r-xs);padding:10px 12px">
+        <div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Safe to spend</div>
+        <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:${remCol}">${daysLeft>0?fmtAbs(Math.max(0,safePerDay)):'—'}</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:3px">per day from now</div>
       </div>
     </div>
-    <div class="prog-track"><div class="prog-track-fill" style="width:${pct*100}%;background:${col};transition:width .4s"></div></div>
-    ${tip}
+
+    <!-- Today's mini bar -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+      <span style="font-size:11px;color:var(--t2);font-weight:600">Today: <span style="color:${todayCol};font-family:var(--mono)">${fmtAbs(todaySpent)}</span> / ${fmtAbs(lim)}</span>
+      <span style="font-size:10px;color:var(--t3)">${Math.round(todayPct*100)}%</span>
+    </div>
+    <div class="prog-track" style="height:4px;margin-bottom:8px">
+      <div class="prog-track-fill" style="width:${todayPct*100}%;background:${todayCol};height:100%"></div>
+    </div>
+
+    <div style="font-size:11px">${statusMsg}</div>
   </div>`;
 }
 
