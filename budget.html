@@ -54,6 +54,10 @@ input,textarea,select{-webkit-user-select:text;user-select:text}
 /* Prevent double-tap zoom on buttons and interactive elements */
 button,a,[data-tab],.nk,.cat-btn,.nav-item,.imp-chk,label,[onclick]{touch-action:manipulation}
 
+/* ── HOME 2-COL (mobile: single col) ── */
+.home-cols{display:flex;flex-direction:column;gap:0}
+.home-col-left,.home-col-right,.home-full{width:100%}
+
 /* ── LAYOUT ── */
 #shell{
   display:flex;
@@ -106,11 +110,24 @@ button,a,[data-tab],.nk,.cat-btn,.nav-item,.imp-chk,label,[onclick]{touch-action
       var(--bg);
   }
   #content{
-    max-width:780px;margin:0 auto;
+    max-width:1100px;margin:0 auto;
     padding:2rem 2.5rem 3rem;
     font-size:16px;
   }
   #nav{display:none!important}
+
+  /* ── DESKTOP 2-COLUMN HOME LAYOUT ── */
+  .home-col-left{flex:1;min-width:0}
+  .home-col-right{width:340px;flex-shrink:0}
+  .home-cols{display:flex;gap:16px;align-items:flex-start}
+  .home-full{width:100%}
+
+  /* Desktop hero card: bigger ring area */
+  .hero-card{padding:1.5rem}
+  .stat-row{padding:6px 0}
+  .stat-label{font-size:14px;gap:7px}
+  .stat-dot{width:8px;height:8px}
+  .stat-val{font-size:15px}
 }
 @media(min-width:1200px){
   #content{max-width:960px;font-size:17px}
@@ -1331,64 +1348,103 @@ function renderHome(){
 
   ${S.showInc&&S.tab==='home'?incFormHtml(true):''}
 
-  <!-- Hero balance card -->
-  <div class="hero-card" style="margin-bottom:8px">
-    <div style="display:flex;align-items:center;gap:1rem">
-      ${ringHtml(c)}
-      <div style="flex:1">
-        <div style="font-size:10px;color:var(--t2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em;font-weight:700">This month</div>
-        <div class="stat-row"><span class="stat-label"><span class="stat-dot" style="background:#1dc99a"></span>Income</span><span class="stat-val" style="color:#1dc99a">${fmtAbs(c.totalInc)}</span></div>
-        <div class="stat-row"><span class="stat-label"><span class="stat-dot" style="background:#f472b6"></span>Bills due</span><span class="stat-val" style="color:${c.totalUnpaid>0?'var(--amber)':'var(--t2)'}">${fmtAbs(c.totalUnpaid)}</span></div>
-        <div class="stat-row"><span class="stat-label"><span class="stat-dot" style="background:#60a5fa"></span>Spent</span><span class="stat-val" style="color:#60a5fa">${fmtAbs(c.totalVar)}</span></div>
+  <div class="home-cols">
+    <!-- LEFT COLUMN: hero + daily limit + today -->
+    <div class="home-col-left">
+
+      <!-- Hero balance card -->
+      <div class="hero-card" style="margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:1rem">
+          ${ringHtml(c)}
+          <div style="flex:1">
+            <div style="font-size:10px;color:var(--t2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em;font-weight:700">This month</div>
+            <div class="stat-row"><span class="stat-label"><span class="stat-dot" style="background:#1dc99a"></span>Income</span><span class="stat-val" style="color:#1dc99a">${fmtAbs(c.totalInc)}</span></div>
+            <div class="stat-row"><span class="stat-label"><span class="stat-dot" style="background:#f472b6"></span>Bills due</span><span class="stat-val" style="color:${c.totalUnpaid>0?'var(--amber)':'var(--t2)'}">${fmtAbs(c.totalUnpaid)}</span></div>
+            <div class="stat-row"><span class="stat-label"><span class="stat-dot" style="background:#60a5fa"></span>Spent</span><span class="stat-val" style="color:#60a5fa">${fmtAbs(c.totalVar)}</span></div>
+            <div class="stat-row"><span class="stat-label"><span class="stat-dot" style="background:#a78bfa"></span>Balance</span><span class="stat-val" style="color:${c.balance>=0?'var(--green)':'var(--red)'}">${fmtAbs(c.balance)}</span></div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
 
-  ${insightChips(c)}
+      ${insightChips(c)}
+      ${renderDailyLimitCard(c)}
 
-  ${renderDailyLimitCard(c)}
-
-  ${renderAdvice(c)}
-
-  ${S.bills.length>0?`
-  <div class="card" id="snap-bills" style="cursor:pointer;padding:.9rem 1.125rem;margin-bottom:10px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px">
-        <i class="ti ti-repeat" style="font-size:14px;color:var(--t2)"></i>Fixed bills
-        <span class="${c.totalUnpaid>0?'badge badge-amber':'badge badge-green'}">${c.paidCount}/${S.bills.length}</span>
-      </span>
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:12px;font-weight:600;color:${c.totalUnpaid>0?'var(--amber)':'var(--green)'}">
-          ${c.totalUnpaid>0?fmtAbs(c.totalUnpaid)+' due':'All paid ✓'}
-        </span>
-        <i class="ti ti-chevron-right" style="font-size:12px;color:var(--t3)"></i>
+      <!-- Today card -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;${c.todayExps.length>0?'margin-bottom:8px':''}">
+          <span style="font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px">
+            Today
+            ${c.todayExps.length>0?`<span class="badge badge-red">${c.todayExps.length}</span>`:''}
+          </span>
+          <span style="font-size:14px;font-weight:700;font-family:var(--mono);color:${c.todayTotal>0?'var(--red)':'var(--t3)'}">${fmtAbs(c.todayTotal)}</span>
+        </div>
+        ${c.todayExps.length===0
+          ?`<div style="font-size:13px;color:var(--t3);font-weight:500;padding:4px 0">Nothing yet — tap + to add an expense</div>`
+          :[...c.todayExps].reverse().map(e=>expRow(e,true)).join('')
+        }
       </div>
-    </div>
-    <div class="prog-track"><div class="prog-track-fill" style="width:${c.totalFixed>0?(c.totalPaid/c.totalFixed)*100:0}%;background:var(--green)"></div></div>
-    <div style="font-size:11px;color:var(--t2);margin-top:4px;font-weight:500">${fmtAbs(c.totalPaid)} paid of ${fmtAbs(c.totalFixed)}/mo</div>
-  </div>`:''
-  }
 
-  <!-- Today card -->
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;${c.todayExps.length>0?'margin-bottom:8px':''}">
-      <span style="font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px">
-        Today
-        ${c.todayExps.length>0?`<span class="badge badge-red">${c.todayExps.length}</span>`:''}
-      </span>
-      <span style="font-size:14px;font-weight:700;font-family:var(--mono);color:${c.todayTotal>0?'var(--red)':'var(--t3)'}">${fmtAbs(c.todayTotal)}</span>
-    </div>
-    ${c.todayExps.length===0
-      ?`<div style="font-size:13px;color:var(--t3);font-weight:500;padding:4px 0">Nothing yet — tap + to add an expense</div>`
-      :[...c.todayExps].reverse().map(e=>expRow(e,true)).join('')
-    }
-  </div>
+      ${c.recentExps.filter(e=>e.date!==c.today).slice(0,8).length>0?`
+      <div class="card">
+        <div style="font-size:13px;font-weight:600;margin-bottom:7px;color:var(--t2)">Recent</div>
+        ${c.recentExps.filter(e=>e.date!==c.today).slice(0,8).map(e=>expRow(e,true)).join('')}
+      </div>`:''}
 
-  ${c.recentExps.filter(e=>e.date!==c.today).slice(0,6).length>0?`
-  <div class="card">
-    <div style="font-size:13px;font-weight:600;margin-bottom:7px;color:var(--t2)">Recent</div>
-    ${c.recentExps.filter(e=>e.date!==c.today).slice(0,6).map(e=>expRow(e,true)).join('')}
-  </div>`:''}
+    </div><!-- /left -->
+
+    <!-- RIGHT COLUMN: insights + bills -->
+    <div class="home-col-right">
+
+      ${renderAdvice(c)}
+
+      ${S.bills.length>0?`
+      <div class="card" id="snap-bills" style="cursor:pointer;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px">
+            <i class="ti ti-repeat" style="font-size:14px;color:var(--t2)"></i>Fixed bills
+            <span class="${c.totalUnpaid>0?'badge badge-amber':'badge badge-green'}">${c.paidCount}/${S.bills.length}</span>
+          </span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:12px;font-weight:600;color:${c.totalUnpaid>0?'var(--amber)':'var(--green)'}">
+              ${c.totalUnpaid>0?fmtAbs(c.totalUnpaid)+' due':'All paid ✓'}
+            </span>
+            <i class="ti ti-chevron-right" style="font-size:12px;color:var(--t3)"></i>
+          </div>
+        </div>
+        <div class="prog-track"><div class="prog-track-fill" style="width:${c.totalFixed>0?(c.totalPaid/c.totalFixed)*100:0}%;background:var(--green)"></div></div>
+        <div style="font-size:11px;color:var(--t2);margin-top:5px;font-weight:500">${fmtAbs(c.totalPaid)} paid of ${fmtAbs(c.totalFixed)}/mo</div>
+
+        ${c.unpaid.length>0?`<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+          <div style="font-size:11px;color:var(--t2);font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Upcoming</div>
+          ${[...c.unpaid].sort((a,b)=>a.dueDay-b.dueDay).slice(0,4).map(b=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+              <span style="font-size:12px;font-weight:500">${esc(b.name)}</span>
+              <span style="font-size:12px;font-family:var(--mono);color:var(--amber)">${fmtAbs(b.amount)} <span style="color:var(--t3);font-size:10px">day ${b.dueDay}</span></span>
+            </div>`).join('')}
+        </div>`:''}
+      </div>`:''
+      }
+
+      ${S.goals.length>0?`
+      <div class="card" style="margin-bottom:8px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          <i class="ti ti-target" style="font-size:15px;color:var(--blue)"></i>Goals
+        </div>
+        ${S.goals.slice(0,3).map(g=>{const p=planGoal(g);return`
+          <div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-size:12px;font-weight:600">${esc(g.name)}</span>
+              <span style="font-size:11px;font-family:var(--mono);color:var(--t2)">${fmtAbs(p.saved)} / ${fmtAbs(g.target)}</span>
+            </div>
+            <div class="prog-track" style="height:5px">
+              <div class="prog-track-fill" style="width:${p.pct*100}%;background:var(--blue);height:100%"></div>
+            </div>
+            ${p.requiredPerMonth?`<div style="font-size:10px;color:var(--t3);margin-top:3px">${fmtAbs(p.requiredPerMonth)}/mo needed</div>`:''}
+          </div>`}).join('')}
+      </div>`:''}
+
+    </div><!-- /right -->
+  </div><!-- /home-cols -->
 
   ${S.confirmArc?`
   <div class="confirm-box">
