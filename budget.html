@@ -2061,7 +2061,10 @@ async function arcMonth(){
   // Advance to next month (not new Date() which could stay in same month)
   const nextMonth=d.month===11?0:d.month+1;
   const nextYear=d.month===11?d.year+1:d.year;
-  S.data={month:nextMonth,year:nextYear,income:[],expenses:[],paidBills:[]};
+  const newDate=`${nextYear}-${String(nextMonth+1).padStart(2,'0')}-01`;
+  const base=Date.now();
+  const carriedIncome=d.income.map((inc,i)=>({...inc,id:base+i,date:newDate}));
+  S.data={month:nextMonth,year:nextYear,income:carriedIncome,expenses:[],paidBills:[]};
   S.confirmArc=false;
   await saveData();
   render();
