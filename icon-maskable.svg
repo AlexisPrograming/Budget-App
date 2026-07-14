@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Maskable icon: full bleed background (no rounded corners — Android clips it) -->
-  <rect width="512" height="512" fill="#090a0d"/>
-  <!-- Wallet body — slightly smaller to stay inside the safe zone -->
-  <rect x="96" y="188" width="320" height="200" rx="28" fill="#1dc99a"/>
+  <!-- Maskable: full bleed, safe zone is inner 80% -->
+  <rect width="512" height="512" fill="#0e0c09"/>
+  <!-- Wallet body -->
+  <rect x="102" y="192" width="308" height="180" rx="28" fill="#c9a84c"/>
   <!-- Wallet flap -->
-  <rect x="96" y="166" width="196" height="54" rx="16" fill="#17b389"/>
-  <!-- Coin pocket -->
-  <rect x="310" y="240" width="100" height="78" rx="18" fill="#0a1a12"/>
-  <circle cx="360" cy="279" r="22" fill="none" stroke="#1dc99a" stroke-width="5"/>
-  <circle cx="360" cy="279" r="9" fill="#1dc99a"/>
+  <rect x="102" y="168" width="188" height="48" rx="22" fill="#a8842a"/>
+  <!-- Card pocket -->
+  <rect x="268" y="216" width="102" height="84" rx="18" fill="#14120e"/>
+  <circle cx="319" cy="258" r="20" fill="none" stroke="#c9a84c" stroke-width="5"/>
+  <circle cx="319" cy="258" r="8" fill="#c9a84c"/>
 </svg>

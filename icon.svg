@@ -1,13 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- App icon background -->
-  <rect width="512" height="512" rx="112" fill="#090a0d"/>
+  <rect width="512" height="512" rx="112" fill="#0e0c09"/>
   <!-- Wallet body -->
-  <rect x="76" y="168" width="360" height="228" rx="32" fill="#1dc99a"/>
-  <!-- Wallet flap / top strip -->
-  <rect x="76" y="144" width="220" height="60" rx="18" fill="#17b389"/>
-  <!-- Coin pocket background -->
-  <rect x="298" y="222" width="116" height="90" rx="22" fill="#0a1a12"/>
-  <!-- Coin pocket circle -->
-  <circle cx="356" cy="267" r="26" fill="none" stroke="#1dc99a" stroke-width="5"/>
-  <circle cx="356" cy="267" r="10" fill="#1dc99a"/>
+  <rect x="92" y="179" width="328" height="194" rx="32" fill="#c9a84c"/>
+  <!-- Wallet flap -->
+  <rect x="92" y="151" width="205" height="52" rx="26" fill="#a8842a"/>
+  <!-- Card pocket -->
+  <rect x="256" y="205" width="112" height="92" rx="20" fill="#14120e"/>
+  <circle cx="312" cy="251" r="22" fill="none" stroke="#c9a84c" stroke-width="5"/>
+  <circle cx="312" cy="251" r="9" fill="#c9a84c"/>
 </svg>
