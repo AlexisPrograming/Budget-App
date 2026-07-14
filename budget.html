@@ -384,12 +384,12 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 .b-actions{display:flex;flex-direction:column;gap:4px;margin-right:3px}
 
 /* ── NUMPAD ── */
-.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:8px 0}
 .nk{
-  height:74px;border-radius:16px;
+  height:56px;border-radius:14px;
   background:rgba(255,248,228,0.07);
   border:1px solid var(--border2);
-  color:var(--text);font-size:26px;font-weight:500;font-family:var(--mono);
+  color:var(--text);font-size:22px;font-weight:500;font-family:var(--mono);
   cursor:pointer;display:flex;align-items:center;justify-content:center;
   transition:transform 0.08s cubic-bezier(0.4,0,0.2,1),background 0.1s,box-shadow 0.12s;
   box-shadow:0 2px 0 rgba(0,0,0,0.40),inset 0 1px 0 rgba(255,248,228,0.07);
@@ -397,19 +397,19 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 }
 .nk:hover{background:rgba(255,248,228,0.11);box-shadow:0 3px 8px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,248,228,0.09)}
 .nk:active{transform:translateY(2px) scale(0.95)!important;background:rgba(255,248,228,0.15);box-shadow:none}
-.nk.bk{font-size:20px;background:rgba(255,248,228,0.04);border-color:var(--border)}
+.nk.bk{font-size:18px;background:rgba(255,248,228,0.04);border-color:var(--border)}
 @media(min-width:768px){
   .numpad{gap:12px;margin:8px 0}
   .nk{height:82px;font-size:30px;border-radius:18px}
 }
 
 /* ── CATEGORY GRID ── */
-.cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:10px 0}
+.cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:6px 0}
 .cat-btn{
-  display:flex;flex-direction:column;align-items:center;gap:5px;
-  padding:10px 4px;border-radius:12px;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:7px 3px;border-radius:10px;
   background:rgba(255,248,228,0.04);border:1px solid var(--border);
-  cursor:pointer;font-size:10px;color:var(--t2);
+  cursor:pointer;font-size:9px;color:var(--t2);
   font-family:var(--font);font-weight:500;
   transition:all 0.18s cubic-bezier(0.34,1.56,0.64,1);
 }
@@ -420,7 +420,7 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
   box-shadow:0 0 0 3px rgba(201,168,76,0.08),inset 0 1px 0 rgba(201,168,76,0.1);
   color:var(--amber);
 }
-.cat-btn i{font-size:20px}
+.cat-btn i{font-size:18px}
 .cat-btn:active{transform:scale(0.88)!important}
 @media(min-width:768px){
   .cat-grid{grid-template-columns:repeat(5,1fr)}
@@ -1277,6 +1277,9 @@ function renderHome(){
           <button id="menu-notif" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
             <i class="ti ti-bell" id="menu-bell-icon" style="font-size:16px"></i><span id="menu-notif-label">Reminders</span>
           </button>
+          <button id="menu-update" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
+            <i class="ti ti-refresh" id="menu-update-icon" style="font-size:16px;color:var(--amber)"></i><span id="menu-update-label">Update app</span>
+          </button>
           <button id="menu-logout" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--red);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
             <i class="ti ti-logout" style="font-size:16px;color:var(--red)"></i>Sign out
           </button>
@@ -1420,7 +1423,7 @@ function renderAdd(){
 
   const cat=catOf(S.selCat),has=parseFloat(S.amtStr)>0;
   const addBtn=`<button id="do-add" ${has?'':'disabled'}
-    style="width:100%;padding:15px;font-size:15px;font-weight:600;border-radius:var(--r-sm);
+    style="width:100%;padding:12px;font-size:15px;font-weight:600;border-radius:var(--r-sm);
     cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:9px;
     letter-spacing:.01em;margin-top:4px;
     ${has
@@ -1432,13 +1435,13 @@ function renderAdd(){
   </button>`;
 
   const amtDisplay=`
-  <div style="text-align:center;padding:.75rem 0 .25rem">
-    <div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px;font-weight:700">Amount</div>
-    <div style="font-size:62px;font-weight:700;font-family:var(--mono);line-height:1;
+  <div style="text-align:center;padding:.4rem 0 .1rem">
+    <div style="font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.12em;margin-bottom:2px;font-weight:700">Amount</div>
+    <div style="font-size:48px;font-weight:700;font-family:var(--mono);line-height:1;
       color:${has?'var(--text)':'var(--t3)'};letter-spacing:-0.02em">$${esc(S.amtStr)}</div>
   </div>
-  <input id="add-note" type="text" placeholder="Note (optional — e.g. Lunch, Uber)" value="${esc(S.addNote)}"
-    maxlength="${LIMITS.TEXT_NOTE}" style="text-align:center;font-size:14px;margin-bottom:10px;font-weight:500" autocomplete="off" spellcheck="false">`;
+  <input id="add-note" type="text" placeholder="Note (optional)" value="${esc(S.addNote)}"
+    maxlength="${LIMITS.TEXT_NOTE}" style="text-align:center;font-size:13px;margin-bottom:6px;font-weight:500" autocomplete="off" spellcheck="false">`;
 
   const catGrid=`<div class="cat-grid">
     ${CATS.map(c=>`<button class="cat-btn${S.selCat===c.name?' active':''} cat-pick" data-cat="${c.name}"
@@ -1482,14 +1485,14 @@ function renderAdd(){
   }
 
   return`
-  <div class="page-header" style="margin-bottom:.5rem"><div class="page-title">Add expense</div></div>
+  <div class="page-header" style="margin-bottom:.25rem;padding-top:.5rem"><div class="page-title" style="font-size:17px">Add expense</div></div>
   ${amtDisplay}
   ${catGrid}
   ${numpad}
   ${addBtn}
-  <div style="text-align:center;margin-top:8px;margin-bottom:4px">
-    <button id="open-import" style="background:none;border:none;color:var(--t3);font-size:12px;font-family:var(--font);cursor:pointer;padding:6px 12px;border-radius:8px;display:inline-flex;align-items:center;gap:5px">
-      <i class="ti ti-file-import" style="font-size:14px"></i>Import from bank CSV
+  <div style="text-align:center;margin-top:4px;margin-bottom:2px">
+    <button id="open-import" style="background:none;border:none;color:var(--t3);font-size:11px;font-family:var(--font);cursor:pointer;padding:4px 10px;border-radius:8px;display:inline-flex;align-items:center;gap:4px">
+      <i class="ti ti-file-import" style="font-size:12px"></i>Import CSV
     </button>
   </div>`;
 }
@@ -2101,6 +2104,7 @@ function bind(){
   }
   if($('menu-logout')) $('menu-logout').addEventListener('click',async()=>{ await _sb?.auth.signOut(); });
   if($('menu-notif'))  $('menu-notif').addEventListener('click',()=>{ enableNotifications?.(); });
+  if($('menu-update')) $('menu-update').addEventListener('click',forceUpdate);
 
   // Update notification button state after every render
   updateNotifButton?.();
@@ -2528,11 +2532,37 @@ document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&_sb&&currentUser) load().then(render);
 });
 
+// ── FORCE UPDATE ──
+async function forceUpdate(){
+  const lbl=$('menu-update-label'),icon=$('menu-update-icon'),btn=$('menu-update');
+  if(!lbl||!btn) return;
+  const reg=window._swReg;
+  lbl.textContent='Checking…';btn.disabled=true;
+  if(icon) icon.style.animation='spin 0.8s linear infinite';
+  const reset=(msg,col)=>{
+    lbl.textContent=msg;btn.disabled=false;
+    if(icon){icon.style.animation='';icon.style.color=col||'var(--amber)'}
+    setTimeout(()=>{lbl.textContent='Update app';if(icon)icon.style.color='var(--amber)'},2400);
+  };
+  if(!reg){reset('Not supported');return}
+  try{
+    await reg.update();
+    if(reg.waiting){lbl.textContent='Reloading…';reg.waiting.postMessage({type:'SKIP_WAITING'});return}
+    const timer=setTimeout(()=>reset('Up to date ✓','var(--green)'),3500);
+    reg.addEventListener('updatefound',()=>{
+      clearTimeout(timer);lbl.textContent='Reloading…';
+      const sw=reg.installing;if(!sw) return;
+      sw.addEventListener('statechange',()=>{if(sw.state==='installed')sw.postMessage({type:'SKIP_WAITING'})});
+    },{once:true});
+  }catch{reset('Try again')}
+}
+
 // ── SERVICE WORKER + AUTO-UPDATE ──
 if('serviceWorker' in navigator){
   window.addEventListener('load', async ()=>{
     const reg = await navigator.serviceWorker.register('/sw.js').catch(()=>null);
     if(!reg) return;
+    window._swReg = reg;
 
     // KEY: force update check on every app open (critical for iOS PWA)
     reg.update().catch(()=>{});
