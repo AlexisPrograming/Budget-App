@@ -752,7 +752,7 @@ const Store={
 const S={
   tab:'home',data:null,bills:[],archives:[],goals:[],
   dailyLimit:0,showDailyLimitEdit:false,
-  amtStr:'0',selCat:'Food',addNote:'',justAdded:false,
+  amtStr:'0',selCat:'Food',addNote:'',addDate:'',justAdded:false,
   importRows:[],_importSkipped:0,
   showBillForm:false,editBillId:null,
   billForm:{name:'',category:'Housing',amount:'',dueDay:1},
@@ -792,7 +792,7 @@ function calc(){
   const today=todayStr();
   const todayExps=d.expenses.filter(e=>e.date===today);
   const todayTotal=sumAmt(todayExps);
-  const recentExps=[...d.expenses].sort((a,b)=>b.id-a.id);
+  const recentExps=[...d.expenses].sort((a,b)=>b.date!==a.date?(b.date<a.date?-1:1):b.id-a.id);
   const byCat=CATS.map(c=>({...c,total:d.expenses.filter(e=>e.category===c.name).reduce((s,e)=>s+e.amount,0)}))
     .filter(c=>c.total>0).sort((a,b)=>b.total-a.total);
   const sorted=[...b].sort((a,b)=>a.dueDay-b.dueDay);
@@ -1422,6 +1422,21 @@ function renderAdd(){
     </div>`;
 
   const cat=catOf(S.selCat),has=parseFloat(S.amtStr)>0;
+  const _today=todayStr();
+  const _monthStart=`${S.data.year}-${String(S.data.month+1).padStart(2,'0')}-01`;
+  const _dateVal=S.addDate||_today;
+  const _isPast=_dateVal!==_today;
+  const dateInput=`
+  <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+    <input id="add-note" type="text" placeholder="Note (optional)" value="${esc(S.addNote)}"
+      maxlength="${LIMITS.TEXT_NOTE}" style="flex:1;min-width:0;text-align:center;font-size:13px;font-weight:500" autocomplete="off" spellcheck="false">
+    <input id="add-date" type="date" value="${_dateVal}" min="${_monthStart}" max="${_today}"
+      style="width:auto;flex-shrink:0;font-size:13px;font-weight:600;font-family:var(--mono);padding:10px 8px;
+      ${_isPast?'border-color:var(--amber);color:var(--amber);background:var(--amber-dim)':'color:var(--t2)'}">
+  </div>
+  ${_isPast?`<div style="text-align:center;font-size:11px;color:var(--amber);font-weight:600;margin:-2px 0 6px">
+    <i class="ti ti-calendar-event" style="font-size:11px"></i> Adding to ${_dateVal.slice(5)}
+  </div>`:''}`;
   const addBtn=`<button id="do-add" ${has?'':'disabled'}
     style="width:100%;padding:12px;font-size:15px;font-weight:600;border-radius:var(--r-sm);
     cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:9px;
@@ -1440,8 +1455,7 @@ function renderAdd(){
     <div style="font-size:48px;font-weight:700;font-family:var(--mono);line-height:1;
       color:${has?'var(--text)':'var(--t3)'};letter-spacing:-0.02em">$${esc(S.amtStr)}</div>
   </div>
-  <input id="add-note" type="text" placeholder="Note (optional)" value="${esc(S.addNote)}"
-    maxlength="${LIMITS.TEXT_NOTE}" style="text-align:center;font-size:13px;margin-bottom:6px;font-weight:500" autocomplete="off" spellcheck="false">`;
+  ${dateInput}`;
 
   const catGrid=`<div class="cat-grid">
     ${CATS.map(c=>`<button class="cat-btn${S.selCat===c.name?' active':''} cat-pick" data-cat="${c.name}"
@@ -1471,8 +1485,7 @@ function renderAdd(){
           <div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px;font-weight:700">Amount</div>
           <div class="amt-num" style="color:${has?'var(--text)':'var(--t3)'}">$${esc(S.amtStr)}</div>
         </div>
-        <input id="add-note" type="text" placeholder="Note (optional — e.g. Lunch, Uber)" value="${esc(S.addNote)}"
-          maxlength="${LIMITS.TEXT_NOTE}" style="text-align:center;font-size:14px;margin-bottom:4px;font-weight:500" autocomplete="off" spellcheck="false">
+        ${dateInput}
         ${numpad}
         ${addBtn}
         <div style="text-align:center;margin-top:10px">
@@ -1910,17 +1923,33 @@ function bind(){
     });
   }
 
+  // Expense date picker — allows backdating within the current month
+  const expDate=$('add-date');
+  if(expDate){
+    expDate.addEventListener('change',e=>{
+      const v=e.target.value;
+      const today=todayStr();
+      const monthStart=`${S.data.year}-${String(S.data.month+1).padStart(2,'0')}-01`;
+      // Clamp: only dates within the current month, never in the future
+      S.addDate=(v&&v>=monthStart&&v<=today&&v!==today)?v:'';
+      render();
+    });
+  }
+
   // Add expense
   if($('do-add')) $('do-add').addEventListener('click',()=>{
     const amt=parseFloat(S.amtStr);
     if(!amt||isNaN(amt)||amt<=0||amt>LIMITS.AMT_MAX) return;
+    const today=todayStr();
+    const monthStart=`${S.data.year}-${String(S.data.month+1).padStart(2,'0')}-01`;
+    const expenseDate=(S.addDate&&S.addDate>=monthStart&&S.addDate<=today)?S.addDate:today;
     S.data.expenses.push({
-      id:Date.now(),date:todayStr(),
+      id:Date.now(),date:expenseDate,
       category:S.selCat,
       description:S.addNote.trim()||S.selCat,
       amount:amt
     });
-    S.amtStr='0';S.addNote='';S.justAdded=true;
+    S.amtStr='0';S.addNote='';S.addDate='';S.justAdded=true;
     saveData();render();
     setTimeout(()=>{S.justAdded=false;S.tab='home';render()},1000);
   });
