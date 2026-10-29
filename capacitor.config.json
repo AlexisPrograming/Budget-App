@@ -1,0 +1,16 @@
+{
+  "appId": "com.alexisprograming.budget",
+  "appName": "Budget",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0e0c09"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "backgroundColor": "#0e0c09",
+      "launchAutoHide": true,
+      "launchShowDuration": 600
+    }
+  }
+}
