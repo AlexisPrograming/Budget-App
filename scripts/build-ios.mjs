@@ -66,10 +66,32 @@ html = html.replace("fetch('/api/subscribe'", `fetch('${baseUrl}/api/subscribe'`
 await writeFile(`${OUT}/index.html`, html);
 
 // ── Public Supabase settings, read from the live deployment ──
-const res = await fetch(`${baseUrl}/config.js`);
-if (!res.ok) throw new Error(`No pude leer ${baseUrl}/config.js (${res.status})`);
-const config = await res.text();
-if (!/SUPABASE_URL = "https?:/.test(config)) throw new Error('config.js no trae SUPABASE_URL; revisa BUDGET_URL');
+// Plan B: save the text of <BUDGET_URL>/config.js from your browser into config.local.js
+let config;
+if (existsSync('config.local.js')) {
+  config = await readFile('config.local.js', 'utf8');
+  console.log('· usando config.local.js');
+} else {
+  let res;
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    res = await fetch(`${baseUrl}/config.js`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+        'Accept': '*/*',
+      },
+    });
+    if (res.ok || res.status !== 429) break;
+    await new Promise(r => setTimeout(r, attempt * 3000));
+  }
+  if (!res.ok) {
+    throw new Error(
+      `No pude leer ${baseUrl}/config.js (${res.status}).\n` +
+      `Plan B: abre esa dirección en tu navegador, copia todo el texto, guárdalo como config.local.js en esta carpeta y vuelve a correr el comando.`
+    );
+  }
+  config = await res.text();
+}
+if (!/SUPABASE_URL = "https?:/.test(config)) throw new Error('config.js no trae SUPABASE_URL; revisa BUDGET_URL o config.local.js');
 await writeFile(`${OUT}/config.js`, config);
 
 // ── Static assets ──

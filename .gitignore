@@ -8,3 +8,4 @@
 /ios/App/build
 /ios/DerivedData
 /node_modules
+/config.local.js
