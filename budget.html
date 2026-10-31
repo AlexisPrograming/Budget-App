@@ -630,6 +630,8 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 @media(min-width:768px){
   .btn-action{padding:7px 16px;font-size:12px;min-height:unset}
 }
+/* ── NATIVE APP ── */
+.is-native #menu-notif,.is-native #menu-update,.is-native #sb-notif{display:none!important}
 </style>
 </head>
 <body>
@@ -644,6 +646,27 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 </div>
 
 <script>
+// ── NATIVE (CAPACITOR) ──
+const IS_NATIVE=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+if(IS_NATIVE) document.documentElement.classList.add('is-native');
+const _plug={};
+const nativePlugin=n=>{
+  if(!IS_NATIVE) return null;
+  try{ return _plug[n]||(_plug[n]=window.Capacitor.registerPlugin(n)); }catch{ return null; }
+};
+const haptic={
+  tap:()=>{ try{nativePlugin('Haptics')?.impact({style:'LIGHT'})}catch{} },
+  press:()=>{ try{nativePlugin('Haptics')?.impact({style:'MEDIUM'})}catch{} },
+  ok:()=>{ try{nativePlugin('Haptics')?.notification({type:'SUCCESS'})}catch{} },
+};
+if(IS_NATIVE){
+  try{ nativePlugin('StatusBar')?.setStyle({style:'DARK'}); }catch{}
+  document.addEventListener('pointerdown',e=>{
+    const t=e.target.closest&&e.target.closest('button,.nav-item,[data-tab],.sb-nav-item');
+    if(t&&!t.disabled) haptic.tap();
+  },{passive:true});
+}
+
 // ── CONSTANTS ──
 const CATS=[
   {name:'Food',         icon:'ti-tools-kitchen-2', color:'#fbbf24',bg:'rgba(251,191,36,.14)'},
@@ -1828,6 +1851,7 @@ function bind(){
   on('.del-exp','click',e=>{
     const id=+e.currentTarget.dataset.id;
     S.data.expenses=S.data.expenses.filter(x=>x.id!==id);
+    haptic.press();
     saveData();render();
   });
   on('.del-inc','click',e=>{
@@ -1950,6 +1974,7 @@ function bind(){
       amount:amt
     });
     S.amtStr='0';S.addNote='';S.addDate='';S.justAdded=true;
+    haptic.ok();
     saveData();render();
     setTimeout(()=>{S.justAdded=false;S.tab='home';render()},1000);
   });
@@ -2606,7 +2631,7 @@ async function forceUpdate(){
 }
 
 // ── SERVICE WORKER + AUTO-UPDATE ──
-if('serviceWorker' in navigator){
+if('serviceWorker' in navigator&&!IS_NATIVE){
   window.addEventListener('load', async ()=>{
     const reg = await navigator.serviceWorker.register('/sw.js').catch(()=>null);
     if(!reg) return;
