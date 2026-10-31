@@ -3,3 +3,9 @@
 
 # Local Supabase config — never push to GitHub
 /config.js
+/www
+/ios/App/Pods
+/ios/App/build
+/ios/DerivedData
+/node_modules
+/config.local.js
