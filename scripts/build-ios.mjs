@@ -34,8 +34,8 @@ await cp(tablerFonts, `${OUT}/vendor/tabler/fonts`, {
 // ── App fonts ──
 const faces = [];
 const fontFiles = [
-  ['plus-jakarta-sans', 'Plus Jakarta Sans', [400, 500, 600, 700]],
-  ['dm-mono', 'DM Mono', [400, 500]],
+  ['bricolage-grotesque', 'Bricolage Grotesque', [500, 700]],
+  ['dm-sans', 'DM Sans', [400, 500, 600]],
 ];
 for (const [pkg, family, weights] of fontFiles) {
   for (const w of weights) {

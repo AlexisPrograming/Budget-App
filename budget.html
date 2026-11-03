@@ -12,37 +12,38 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.x/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.50.0/dist/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=DM+Sans:wght@400;500;600&display=swap">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 
 :root{
-  --font:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,sans-serif;
-  --mono:'DM Mono','SF Mono',monospace;
-  --bg:#0e0c09;
-  --bg2:#151209;
-  --surface:rgba(255,248,228,0.045);
-  --surface2:rgba(255,248,228,0.075);
-  --border:rgba(255,248,228,0.085);
-  --border2:rgba(255,248,228,0.15);
-  --text:#f0e8d6;
-  --t2:rgba(240,232,214,0.56);
-  --t3:rgba(240,232,214,0.30);
-  --green:#4caf84;
-  --green-dim:rgba(76,175,132,0.13);
-  --green-glow:rgba(76,175,132,0.28);
-  --red:#e07878;
-  --red-dim:rgba(224,120,120,0.12);
-  --amber:#c9a84c;
-  --amber-dim:rgba(201,168,76,0.13);
-  --blue:#7bafd4;
-  --purple:#b09ae8;
+  --font:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+  --display:'Bricolage Grotesque','DM Sans',-apple-system,sans-serif;
+  --mono:'Bricolage Grotesque','DM Sans',-apple-system,sans-serif;
+  --bg:#120c0a;
+  --bg2:#1a110e;
+  --surface:rgba(255,255,255,0.07);
+  --surface2:rgba(255,255,255,0.10);
+  --border:rgba(255,255,255,0.09);
+  --border2:rgba(255,255,255,0.16);
+  --text:#fbefe4;
+  --t2:rgba(251,239,228,0.68);
+  --t3:rgba(251,239,228,0.46);
+  --green:#6fe0b0;
+  --green-dim:rgba(111,224,176,0.14);
+  --green-glow:rgba(111,224,176,0.28);
+  --red:#ff8a80;
+  --red-dim:rgba(255,138,128,0.14);
+  --amber:#ffb066;
+  --amber-dim:rgba(255,176,102,0.16);
+  --blue:#7cc4ff;
+  --purple:#b9a2ff;
   --blur:blur(24px) saturate(160%);
-  --r:18px;--r-sm:12px;--r-xs:8px;
+  --r:22px;--r-sm:16px;--r-xs:10px;
   --nav-h:56px;
   --sidebar:240px;
 }
@@ -73,17 +74,13 @@ button,a,[data-tab],.nk,.cat-btn,.nav-item,.imp-chk,label,[onclick]{touch-action
   height:100vh;height:100dvh;
   overflow:hidden;
   position:relative;
-  background:
-    radial-gradient(ellipse at 15% 5%,  rgba(201,168,76,0.12) 0%,transparent 48%),
-    radial-gradient(ellipse at 85% 92%, rgba(76,175,132,0.08) 0%,transparent 42%),
-    radial-gradient(ellipse at 55% 50%, rgba(201,168,76,0.04) 0%,transparent 38%),
-    var(--bg);
+  background:radial-gradient(120% 60% at 50% 0%,#3a1f17 0%,#1a110e 55%,#120c0a 100%);
 }
 #content{
   flex:1;
   min-height:0; /* essential for flex child to shrink and scroll */
   /* top: below Dynamic Island/notch + extra breathing room */
-  padding:calc(env(safe-area-inset-top, 0px) + 1rem) 0.875rem 12px;
+  padding:calc(env(safe-area-inset-top, 0px) + 1rem) 0.875rem calc(112px + env(safe-area-inset-bottom, 0px));
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;
@@ -107,10 +104,7 @@ button,a,[data-tab],.nk,.cat-btn,.nav-item,.imp-chk,label,[onclick]{touch-action
   #main{
     max-width:none;margin:0;
     flex:1;
-    background:
-      radial-gradient(ellipse at 15% 5%,  rgba(201,168,76,0.09) 0%,transparent 48%),
-      radial-gradient(ellipse at 85% 92%, rgba(76,175,132,0.06) 0%,transparent 42%),
-      var(--bg);
+    background:radial-gradient(120% 60% at 50% 0%,#3a1f17 0%,#1a110e 55%,#120c0a 100%);
   }
   #content{
     max-width:1100px;margin:0 auto;
@@ -169,59 +163,55 @@ button,a,[data-tab],.nk,.cat-btn,.nav-item,.imp-chk,label,[onclick]{touch-action
 .sb-divider{height:1px;background:var(--border);margin:0.75rem 1rem}
 .sb-section{font-size:10px;font-weight:600;color:var(--t3);letter-spacing:0.1em;text-transform:uppercase;padding:0 1.5rem;margin:0.5rem 0 0.25rem}
 
-/* ── MOBILE NAV ── */
+/* ── MOBILE NAV (floating pill) ── */
 #nav{
-  display:flex;align-items:stretch;
-  background:rgba(14,12,9,0.97);
+  position:absolute;z-index:50;
+  left:16px;right:16px;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
+  height:68px;border-radius:34px;
+  display:flex;align-items:center;justify-content:space-around;padding:0 10px;
+  background:rgba(40,26,21,0.92);
   backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%);
-  border-top:1px solid var(--border);
-  padding-bottom:env(safe-area-inset-bottom,0px);
-  flex-shrink:0;
-  height:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));
+  border:1px solid rgba(255,255,255,0.10);
+  box-shadow:0 12px 30px rgba(0,0,0,0.45);
 }
 .nav-item{
-  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
-  background:transparent;border:none;padding:0;
-  color:var(--t3);font-size:9px;font-weight:600;letter-spacing:0.04em;
-  transition:color 0.22s;cursor:pointer;font-family:var(--font);
-  position:relative;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  background:transparent;border:none;padding:8px 14px;border-radius:24px;
+  color:var(--t2);font-size:11px;font-weight:500;
+  transition:color 0.22s,background 0.22s;cursor:pointer;font-family:var(--font);
 }
-/* Active indicator: small pill at top edge */
-.nav-item::after{
-  content:'';position:absolute;top:0;left:50%;
-  transform:translateX(-50%) scaleX(0);
-  width:20px;height:3px;border-radius:0 0 4px 4px;
-  background:var(--amber);
-  transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
-}
-.nav-item.active::after{transform:translateX(-50%) scaleX(1)}
-.nav-item i{
-  font-size:20px;
-  transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1),color 0.22s;
-  display:block;
-}
-.nav-item.active{color:var(--amber)}
-.nav-item.active i{transform:scale(1.18) translateY(-1px);color:var(--amber)}
-.nav-item:active{opacity:0.55}
-.nav-fab-wrap{
-  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
-  background:transparent;border:none;cursor:pointer;padding:0;font-family:var(--font);
-}
+.nav-item i{font-size:20px;display:block;transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1)}
+.nav-item.active{color:var(--amber);background:var(--amber-dim);font-weight:600}
+.nav-item.active i{transform:scale(1.1)}
+.nav-fab-wrap{display:flex;align-items:center;justify-content:center;background:transparent;border:none;cursor:pointer;padding:0;font-family:var(--font)}
 .fab{
-  width:38px;height:38px;border-radius:12px;
-  background:var(--amber-dim);
-  border:1.5px solid rgba(201,168,76,0.38);
+  width:54px;height:54px;border-radius:27px;
+  background:linear-gradient(135deg,#ffb066,#e5584f);
   display:flex;align-items:center;justify-content:center;
-  transition:transform 0.18s cubic-bezier(0.34,1.56,0.64,1),background 0.15s,border-color 0.15s;
+  box-shadow:0 6px 18px rgba(229,88,79,0.5);
+  transition:transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
 }
-.nav-fab-wrap:active .fab{transform:scale(0.88)!important;background:rgba(201,168,76,0.22)}
-.fab i{font-size:19px;color:var(--amber);line-height:1}
-.fab-lbl{font-size:9px;color:var(--t3);font-weight:600;letter-spacing:0.04em}
-.nav-fab-wrap.active .fab-lbl{color:var(--amber)}
-.nav-fab-wrap.active .fab{
-  background:rgba(201,168,76,0.20);
-  border-color:rgba(201,168,76,0.58);
-}
+.nav-fab-wrap:active .fab{transform:scale(0.88)!important}
+.nav-fab-wrap.active .fab{box-shadow:0 6px 22px rgba(229,88,79,0.75)}
+.fab i{font-size:24px;color:#2a120c;line-height:1}
+.fab-lbl{display:none}
+
+/* ── LIQUID ORB (mobile home) ── */
+@keyframes waveShift{to{transform:translateX(-150px)}}
+@keyframes waveShiftR{from{transform:translateX(-150px)}to{transform:translateX(0)}}
+@keyframes orbRise{from{transform:translateY(190px)}to{transform:translateY(0)}}
+.orb-wave1{animation:waveShift 7s linear infinite}
+.orb-wave2{animation:waveShiftR 11s linear infinite}
+.orb-rise{animation:orbRise 1s cubic-bezier(.2,.8,.2,1) both}
+@media(prefers-reduced-motion:reduce){.orb-wave1,.orb-wave2,.orb-rise{animation:none}}
+.orb-wrap{position:relative;width:min(292px,78vw);aspect-ratio:1;margin:6px auto 0}
+.orb-wrap svg{display:block;width:100%;height:100%}
+.orb-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none}
+.orb-pills{display:flex;gap:10px;margin:16px 0 12px}
+.orb-pill{flex:1;min-width:0;padding:12px 14px;border-radius:18px;background:rgba(255,255,255,0.07)}
+.orb-pill-l{font-size:12px;color:var(--t2)}
+.orb-pill-v{font-family:var(--display);font-weight:700;font-size:19px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ── ANIMATIONS ── */
 @keyframes tabIn{
@@ -242,7 +232,7 @@ button:active{transform:scale(0.91)!important;opacity:0.8}
 
 /* ── CARDS ── */
 .card{
-  background:linear-gradient(145deg,rgba(255,248,228,0.055),rgba(255,248,228,0.032));
+  background:rgba(255,255,255,0.07);
   backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
   border:1px solid var(--border);border-radius:var(--r);
   padding:0.875rem;margin-bottom:8px;
@@ -269,12 +259,12 @@ button:active{transform:scale(0.91)!important;opacity:0.8}
 }
 .btn:hover{color:var(--text);background:rgba(255,248,228,0.12)}
 .btn-green{
-  background:linear-gradient(135deg,#c9a84c,#a8842a);border:none;
-  color:#120a00;padding:14px;font-size:14px;font-weight:600;
-  width:100%;border-radius:var(--r-sm);letter-spacing:0.015em;
-  box-shadow:0 4px 20px rgba(201,168,76,0.35);
+  background:linear-gradient(135deg,#ffb066,#e5584f);border:none;
+  color:#2a120c;padding:15px;font-size:15px;font-weight:700;
+  width:100%;border-radius:999px;letter-spacing:0.01em;
+  box-shadow:0 10px 26px rgba(229,88,79,0.4);
 }
-.btn-green:hover{background:linear-gradient(135deg,#d4b55a,#b8913a)}
+.btn-green:hover{background:linear-gradient(135deg,#ffbf80,#ee665c)}
 .btn-green:active{box-shadow:none!important}
 .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--t2);padding:7px 16px;font-size:12px;font-weight:500;border-radius:30px;}
 .btn-ghost:hover{border-color:var(--border2);color:var(--text)}
@@ -314,7 +304,7 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 /* ── PAGE HEADER ── */
 .page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem}
 @media(min-width:768px){#profile-wrap{display:none}}
-.page-title{font-size:20px;font-weight:700;letter-spacing:-0.02em}
+.page-title{font-family:var(--display);font-size:22px;font-weight:700;letter-spacing:-0.02em}
 .page-sub{font-size:12px;color:var(--t2);margin-top:2px;font-weight:500}
 
 /* ── HERO RING CARD ── */
@@ -386,10 +376,10 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 /* ── NUMPAD ── */
 .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:8px 0}
 .nk{
-  height:56px;border-radius:14px;
-  background:rgba(255,248,228,0.07);
+  height:56px;border-radius:18px;
+  background:rgba(255,255,255,0.08);
   border:1px solid var(--border2);
-  color:var(--text);font-size:22px;font-weight:500;font-family:var(--mono);
+  color:var(--text);font-size:26px;font-weight:500;font-family:var(--display);
   cursor:pointer;display:flex;align-items:center;justify-content:center;
   transition:transform 0.08s cubic-bezier(0.4,0,0.2,1),background 0.1s,box-shadow 0.12s;
   box-shadow:0 2px 0 rgba(0,0,0,0.40),inset 0 1px 0 rgba(255,248,228,0.07);
@@ -407,17 +397,17 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 .cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:6px 0}
 .cat-btn{
   display:flex;flex-direction:column;align-items:center;gap:3px;
-  padding:7px 3px;border-radius:10px;
-  background:rgba(255,248,228,0.04);border:1px solid var(--border);
+  padding:8px 3px;border-radius:16px;
+  background:rgba(255,255,255,0.07);border:1px solid var(--border);
   cursor:pointer;font-size:9px;color:var(--t2);
   font-family:var(--font);font-weight:500;
   transition:all 0.18s cubic-bezier(0.34,1.56,0.64,1);
 }
 .cat-btn:hover:not(.active){background:rgba(255,248,228,0.08);border-color:rgba(255,248,228,0.14)}
 .cat-btn.active{
-  background:rgba(201,168,76,0.13);
-  border:1.5px solid rgba(201,168,76,0.48);
-  box-shadow:0 0 0 3px rgba(201,168,76,0.08),inset 0 1px 0 rgba(201,168,76,0.1);
+  background:rgba(255,176,102,0.2);
+  border:1.5px solid #ffb066;
+  box-shadow:0 0 0 3px rgba(255,176,102,0.08);
   color:var(--amber);
 }
 .cat-btn i{font-size:18px}
@@ -669,29 +659,29 @@ if(IS_NATIVE){
 
 // ── CONSTANTS ──
 const CATS=[
-  {name:'Food',         icon:'ti-tools-kitchen-2', color:'#fbbf24',bg:'rgba(251,191,36,.14)'},
-  {name:'Transport',    icon:'ti-car',              color:'#60a5fa',bg:'rgba(96,165,250,.14)'},
-  {name:'Shopping',     icon:'ti-shopping-bag',     color:'#f472b6',bg:'rgba(244,114,182,.14)'},
-  {name:'Entertainment',icon:'ti-device-gamepad-2', color:'#a78bfa',bg:'rgba(167,139,250,.14)'},
-  {name:'Health',       icon:'ti-heart',            color:'#f87171',bg:'rgba(248,113,113,.14)'},
-  {name:'Utilities',    icon:'ti-bolt',             color:'#34d399',bg:'rgba(52,211,153,.14)'},
-  {name:'Housing',      icon:'ti-home',             color:'#94a3b8',bg:'rgba(148,163,184,.14)'},
-  {name:'Education',    icon:'ti-book',             color:'#818cf8',bg:'rgba(129,140,248,.14)'},
-  {name:'Savings',      icon:'ti-piggy-bank',       color:'#4ade80',bg:'rgba(74,222,128,.14)'},
-  {name:'Other',        icon:'ti-dots',             color:'#6b7280',bg:'rgba(107,114,128,.14)'},
+  {name:'Food',         icon:'ti-tools-kitchen-2', color:'#ffb066',bg:'rgba(255,176,102,.16)'},
+  {name:'Transport',    icon:'ti-car',              color:'#7cc4ff',bg:'rgba(124,196,255,.16)'},
+  {name:'Shopping',     icon:'ti-shopping-bag',     color:'#ff8fb1',bg:'rgba(255,143,177,.16)'},
+  {name:'Entertainment',icon:'ti-device-gamepad-2', color:'#b9a2ff',bg:'rgba(185,162,255,.16)'},
+  {name:'Health',       icon:'ti-heart',            color:'#ff7a70',bg:'rgba(255,122,112,.16)'},
+  {name:'Utilities',    icon:'ti-bolt',             color:'#6fe0b0',bg:'rgba(111,224,176,.16)'},
+  {name:'Housing',      icon:'ti-home',             color:'#c9b8a8',bg:'rgba(201,184,168,.16)'},
+  {name:'Education',    icon:'ti-book',             color:'#9aa8ff',bg:'rgba(154,168,255,.16)'},
+  {name:'Savings',      icon:'ti-pig-money',        color:'#8fe388',bg:'rgba(143,227,136,.16)'},
+  {name:'Other',        icon:'ti-dots',             color:'#a89c93',bg:'rgba(168,156,147,.16)'},
 ];
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const NAV_TABS=[
   {id:'home',    icon:'ti-home-2',       label:'Home'},
-  {id:'add',     fab:true},
   {id:'bills',   icon:'ti-repeat',       label:'Bills'},
-  {id:'overview',icon:'ti-chart-bar-2',  label:'Overview'},
+  {id:'add',     fab:true},
+  {id:'overview',icon:'ti-chart-bar',  label:'Overview'},
 ];
 const SB_TABS=[
   {id:'home',    icon:'ti-home-2',       label:'Home'},
   {id:'add',     icon:'ti-circle-plus',  label:'Add expense'},
   {id:'bills',   icon:'ti-repeat',       label:'Fixed bills'},
-  {id:'overview',icon:'ti-chart-bar-2',  label:'Overview'},
+  {id:'overview',icon:'ti-chart-bar',  label:'Overview'},
 ];
 
 // ── HELPERS ──
@@ -1278,6 +1268,61 @@ function renderDailyLimitCard(c){
   </div>`;
 }
 
+function homeHeroMobile(c){
+  if(S.showDailyLimitEdit) return renderDailyLimitCard(c);
+  const lim=S.dailyLimit,hasLim=!!lim;
+  let frac,big,small,over=false;
+  if(hasLim){
+    const rem=lim-c.todayTotal;
+    over=rem<0;
+    frac=Math.max(0,Math.min(1,rem/lim));
+    big=(over?'-':'')+fmtAbs(Math.abs(rem));
+    small=over?'over today':'left today';
+  } else {
+    frac=c.totalInc>0?Math.max(0,Math.min(1,c.balance/c.totalInc)):0;
+    big=fmtAbs(c.balance);
+    small='left this month';
+  }
+  const rise=_renderedTab!=='home';
+  const y=(290-frac*280).toFixed(1);
+  const y2=(+y+10).toFixed(1);
+  const fs=big.length>9?38:big.length>7?46:58;
+  const wave=(yy)=>`M-75 ${yy} Q-37 ${(yy-18).toFixed(1)} 0 ${yy} T75 ${yy} T150 ${yy} T225 ${yy} T300 ${yy} T375 ${yy} V300 H-75 Z`;
+  const gA=over?'#ff9a8f':'#ffb066',gB=over?'#e5584f':'#e5584f';
+  const pill=(l,v,col)=>`<div class="orb-pill"><div class="orb-pill-l">${l}</div><div class="orb-pill-v"${col?` style="color:${col}"`:''}>${v}</div></div>`;
+  const pills=hasLim
+    ?pill('Spent today',fmtAbs(c.todayTotal))+pill('Daily limit',fmtAbs(lim))+pill('Month left',fmtAbs(c.balance),c.balance>=0?'var(--amber)':'var(--red)')
+    :pill('Income',fmtAbs(c.totalInc),'var(--green)')+pill('Spent',fmtAbs(c.totalVar))+pill('Bills due',fmtAbs(c.totalUnpaid),c.totalUnpaid>0?'var(--amber)':'')
+  ;
+  return`
+  <div class="orb-wrap">
+    <svg viewBox="0 0 300 300" role="img" aria-label="${esc(small)}: ${esc(big)}">
+      <defs>
+        <clipPath id="orb-clip"><circle cx="150" cy="150" r="140"/></clipPath>
+        <linearGradient id="orb-water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${gA}"/><stop offset="1" stop-color="${gB}"/></linearGradient>
+      </defs>
+      <circle cx="150" cy="150" r="146" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="2"/>
+      <circle cx="150" cy="150" r="140" fill="rgba(255,255,255,.05)"/>
+      <g clip-path="url(#orb-clip)">
+        <g${rise?' class="orb-rise"':''}>
+          <g class="orb-wave2"><path d="${wave(y2)}" fill="#ffb066" opacity=".35"/></g>
+          <g class="orb-wave1"><path d="${wave(y)}" fill="url(#orb-water)"/></g>
+        </g>
+      </g>
+      <circle cx="96" cy="196" r="5" fill="#fff" opacity=".22"/>
+      <circle cx="214" cy="222" r="8" fill="#fff" opacity=".16"/>
+      <circle cx="176" cy="252" r="4" fill="#fff" opacity=".2"/>
+    </svg>
+    <div class="orb-center">
+      <div style="font-family:var(--display);font-weight:700;font-size:${fs}px;letter-spacing:-.03em;line-height:1;color:${over?'#ffd9d4':'#fff'}">${big}</div>
+      <div style="font-size:14px;font-weight:500;margin-top:6px;color:#ffe9d6">${small}</div>
+    </div>
+    ${hasLim?`<button class="btn-icon" id="edit-daily-limit" aria-label="Edit daily limit" style="position:absolute;right:0;top:0;width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);border-radius:20px;color:var(--t2)"><i class="ti ti-pencil" style="font-size:16px"></i></button>`:''}
+  </div>
+  <div class="orb-pills">${pills}</div>
+  ${hasLim?'':renderDailyLimitCard(c)}`;
+}
+
 function renderHome(){
   const c=calc(),d=S.data;
   return`
@@ -1317,6 +1362,7 @@ function renderHome(){
     <!-- LEFT COLUMN: hero + daily limit + today -->
     <div class="home-col-left">
 
+      ${isDesktop()?`
       <!-- Hero balance card -->
       <div class="hero-card" style="margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:1rem">
@@ -1333,6 +1379,8 @@ function renderHome(){
 
       ${insightChips(c)}
       ${renderDailyLimitCard(c)}
+
+      `:homeHeroMobile(c)}
 
       <!-- Today card -->
       <div class="card">
@@ -1461,11 +1509,11 @@ function renderAdd(){
     <i class="ti ti-calendar-event" style="font-size:11px"></i> Adding to ${_dateVal.slice(5)}
   </div>`:''}`;
   const addBtn=`<button id="do-add" ${has?'':'disabled'}
-    style="width:100%;padding:12px;font-size:15px;font-weight:600;border-radius:var(--r-sm);
+    style="width:100%;padding:15px;font-size:16px;font-weight:700;border-radius:999px;
     cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:9px;
     letter-spacing:.01em;margin-top:4px;
     ${has
-      ?'background:linear-gradient(135deg,#1dc99a,#14a07c);border:none;color:#001a10;box-shadow:0 4px 18px var(--green-glow)'
+      ?'background:linear-gradient(135deg,#ffb066,#e5584f);border:none;color:#2a120c;box-shadow:0 10px 26px rgba(229,88,79,0.4)'
       :'background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--t3);cursor:not-allowed'
     }">
     <span style="width:9px;height:9px;border-radius:50%;background:${cat.color};flex-shrink:0;display:inline-block"></span>
@@ -2198,14 +2246,25 @@ window.addEventListener('resize',()=>{
 // ── LOGIN SCREEN ──
 function renderLogin(errMsg){
   document.getElementById('shell').innerHTML=`
-  <div style="min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;
-    background:radial-gradient(ellipse at 20% 20%,rgba(29,201,154,0.12) 0%,transparent 50%),
-    radial-gradient(ellipse at 80% 80%,rgba(96,165,250,0.08) 0%,transparent 50%),var(--bg);
+  <div style="width:100%;min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(120% 60% at 50% 0%,#3a1f17 0%,#1a110e 55%,#120c0a 100%);
     padding:1.5rem">
     <div style="width:100%;max-width:360px">
       <div style="text-align:center;margin-bottom:2rem">
-        <div style="font-size:30px;font-weight:700;letter-spacing:-0.02em;margin-bottom:6px">Budget</div>
-        <div style="font-size:14px;color:var(--t2);font-weight:500">Sign in to your account</div>
+        <svg width="112" height="112" viewBox="0 0 300 300" role="img" aria-label="Budget logo" style="display:block;margin:0 auto 14px">
+          <defs>
+            <clipPath id="lg-clip"><circle cx="150" cy="150" r="140"/></clipPath>
+            <linearGradient id="lg-water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb066"/><stop offset="1" stop-color="#e5584f"/></linearGradient>
+          </defs>
+          <circle cx="150" cy="150" r="146" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="3"/>
+          <circle cx="150" cy="150" r="140" fill="rgba(255,255,255,.05)"/>
+          <g clip-path="url(#lg-clip)">
+            <g class="orb-wave2"><path d="M-75 158 Q-37 140 0 158 T75 158 T150 158 T225 158 T300 158 T375 158 V300 H-75 Z" fill="#ffb066" opacity=".35"/></g>
+            <g class="orb-wave1"><path d="M-75 148 Q-37 130 0 148 T75 148 T150 148 T225 148 T300 148 T375 148 V300 H-75 Z" fill="url(#lg-water)"/></g>
+          </g>
+        </svg>
+        <div style="font-family:var(--display);font-size:38px;font-weight:700;letter-spacing:-0.02em;margin-bottom:4px">Budget</div>
+        <div style="font-size:15px;color:var(--t2);font-weight:500">Sign in to your account</div>
       </div>
       <div class="card" style="padding:1.75rem">
         <div id="l-err" style="display:${errMsg?'block':'none'};background:var(--red-dim);
