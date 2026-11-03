@@ -205,8 +205,56 @@ button,a,[data-tab],.nk,.cat-btn,.nav-item,.imp-chk,label,[onclick]{touch-action
 .orb-wave2{animation:waveShiftR 11s linear infinite}
 .orb-rise{animation:orbRise 1s cubic-bezier(.2,.8,.2,1) both}
 @media(prefers-reduced-motion:reduce){.orb-wave1,.orb-wave2,.orb-rise{animation:none}}
-.orb-wrap{position:relative;width:min(292px,78vw);aspect-ratio:1;margin:6px auto 0}
-.orb-wrap svg{display:block;width:100%;height:100%}
+.orb-wrap{
+  position:relative;width:min(292px,78vw);aspect-ratio:1;margin:6px auto 0;border-radius:50%;
+  background:radial-gradient(circle at 32% 24%,rgba(255,255,255,.13),rgba(255,255,255,.04) 46%,rgba(255,255,255,.03));
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.14),inset 0 -22px 44px rgba(0,0,0,.28),0 22px 54px rgba(229,88,79,.12);
+}
+.orb-wrap canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;touch-action:pan-y;display:block}
+.orb-wrap::after{content:'';position:absolute;left:14%;top:7%;width:46%;height:24%;border-radius:50%;
+  background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,0));transform:rotate(-24deg);pointer-events:none}
+.orb-center{text-shadow:0 2px 14px rgba(60,20,10,.4)}
+
+/* ── FIZZ: CSS bubbles that rise (GPU transform only, paused when the app is hidden) ── */
+@keyframes fizzUp{to{transform:translateY(calc(var(--fz,40px) * -1))}}
+.prog-track-fill,.btn-green,.fizz-btn,.fab{position:relative;overflow:hidden;isolation:isolate}
+.prog-track-fill{--fz:16px}
+.btn-green,.fizz-btn{--fz:64px}
+.fab{--fz:54px}
+.prog-track-fill::before,.prog-track-fill::after,
+.btn-green::before,.btn-green::after,
+.fizz-btn::before,.fizz-btn::after,
+.fab::before,.fab::after{
+  content:'';position:absolute;left:0;right:0;top:0;height:calc(var(--fz) * 2);z-index:-1;pointer-events:none;
+  background-repeat:repeat-y;background-size:100% var(--fz);will-change:transform;
+  animation:fizzUp 5.5s linear infinite;animation-play-state:var(--fx,running);
+}
+.prog-track-fill::after,.btn-green::after,.fizz-btn::after,.fab::after{animation-duration:8.5s;animation-delay:-3s}
+.prog-track-fill::before{background-image:
+  radial-gradient(circle at 10% 80%,rgba(255,255,255,.7) 0 1.1px,transparent 1.6px),
+  radial-gradient(circle at 34% 40%,rgba(255,255,255,.5) 0 .9px,transparent 1.4px),
+  radial-gradient(circle at 62% 90%,rgba(255,255,255,.65) 0 1.3px,transparent 1.8px),
+  radial-gradient(circle at 88% 55%,rgba(255,255,255,.5) 0 1px,transparent 1.5px)}
+.prog-track-fill::after{background-image:
+  radial-gradient(circle at 22% 30%,rgba(255,255,255,.55) 0 1px,transparent 1.5px),
+  radial-gradient(circle at 48% 75%,rgba(255,255,255,.7) 0 1.2px,transparent 1.7px),
+  radial-gradient(circle at 76% 20%,rgba(255,255,255,.5) 0 .9px,transparent 1.4px)}
+.btn-green::before,.fizz-btn::before,.fab::before{background-image:
+  radial-gradient(circle at 9% 82%,rgba(255,255,255,.14) 0 2.4px,rgba(255,255,255,.65) 2.8px 3.4px,transparent 3.8px),
+  radial-gradient(circle at 27% 38%,rgba(255,255,255,.12) 0 1.4px,rgba(255,255,255,.55) 1.7px 2.2px,transparent 2.6px),
+  radial-gradient(circle at 51% 92%,rgba(255,255,255,.14) 0 3.2px,rgba(255,255,255,.6) 3.6px 4.2px,transparent 4.6px),
+  radial-gradient(circle at 74% 52%,rgba(255,255,255,.12) 0 1.8px,rgba(255,255,255,.55) 2.1px 2.7px,transparent 3.1px),
+  radial-gradient(circle at 92% 18%,rgba(255,255,255,.12) 0 1.2px,rgba(255,255,255,.5) 1.5px 2px,transparent 2.4px)}
+.btn-green::after,.fizz-btn::after,.fab::after{background-image:
+  radial-gradient(circle at 17% 24%,rgba(255,255,255,.12) 0 1.6px,rgba(255,255,255,.5) 1.9px 2.4px,transparent 2.8px),
+  radial-gradient(circle at 41% 66%,rgba(255,255,255,.14) 0 2.8px,rgba(255,255,255,.6) 3.2px 3.8px,transparent 4.2px),
+  radial-gradient(circle at 66% 12%,rgba(255,255,255,.12) 0 1.3px,rgba(255,255,255,.5) 1.6px 2.1px,transparent 2.5px),
+  radial-gradient(circle at 84% 78%,rgba(255,255,255,.14) 0 2.2px,rgba(255,255,255,.6) 2.6px 3.2px,transparent 3.6px)}
+.btn-green:active::before,.btn-green:active::after,.fizz-btn:active::before,.fizz-btn:active::after{animation-duration:1.3s}
+@media(prefers-reduced-motion:reduce){
+  .prog-track-fill::before,.prog-track-fill::after,.btn-green::before,.btn-green::after,
+  .fizz-btn::before,.fizz-btn::after,.fab::before,.fab::after{display:none}
+}
 .orb-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none}
 .orb-pills{display:flex;gap:10px;margin:16px 0 12px}
 .orb-pill{flex:1;min-width:0;padding:12px 14px;border-radius:18px;background:rgba(255,255,255,0.07)}
@@ -1268,6 +1316,179 @@ function renderDailyLimitCard(c){
   </div>`;
 }
 
+// ── LIQUID ORB: canvas surface simulation (springs + tilt + bubbles) ──
+// Battery: draws only while the orb is on screen and the app is visible; drops to ~30 fps
+// when nothing is moving, and stays still when "Reduce Motion" is on.
+const Orb=(()=>{
+  const N=44,TAU=Math.PI*2,SIGN=-1,STEP=340/(N-1),MAXB=12;
+  const reduce=window.matchMedia?matchMedia('(prefers-reduced-motion: reduce)'):null;
+  const st={level:0,vel:0,target:0,over:false,init:false,pending:0,
+    tilt:0,lag:0,lagV:0,t:0,h:new Float32Array(N),v:new Float32Array(N),bubbles:[]};
+  const ld=new Float32Array(N),rd=new Float32Array(N);
+  let cvs=null,ctx=null,k=1,raf=0,last=0,sensor=null,starting=false,touching=false,energy=0;
+  const X=i=>-20+i*STEP;
+  const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+  const amb=(x,t)=>1.5*Math.sin(x*0.045+t*1.6)+1.0*Math.sin(x*0.08-t*2.3);
+  const slope=()=>-clamp(st.lag,-1,1)*0.62;
+  const surf=(x,y0)=>{
+    const f=clamp((x+20)/STEP,0,N-1),i=f|0,j=Math.min(N-1,i+1),u=f-i;
+    return y0+(x-150)*slope()+st.h[i]*(1-u)+st.h[j]*u+amb(x,st.t);
+  };
+
+  function splash(str,x){
+    const idx=clamp(Math.round(((x==null?150:x)+20)/STEP),0,N-1);
+    for(let d=-6;d<=6;d++){ const i=idx+d; if(i>=0&&i<N) st.v[i]+=str*(1-Math.abs(d)/7); }
+  }
+
+  function step(ms){
+    const n=Math.max(1,Math.min(3,Math.round(ms/16.7)));
+    st.t+=ms/1000;
+    for(let s=0;s<n;s++){
+      st.vel+=(st.target-st.level)*0.06-st.vel*0.24; st.level+=st.vel;
+      if(Math.abs(st.vel)<1e-5&&Math.abs(st.target-st.level)<1e-4){st.vel=0;st.level=st.target;}
+      const prev=st.lagV;
+      st.lagV+=(st.tilt-st.lag)*0.09-st.lagV*0.16; st.lag+=st.lagV;
+      if(Math.abs(st.lagV)<1e-5&&Math.abs(st.tilt-st.lag)<1e-4){st.lagV=0;st.lag=st.tilt;}
+      const kick=(st.lagV-prev)*0.35;
+      for(let i=0;i<N;i++){
+        st.v[i]+=kick*(X(i)-150);
+        st.v[i]+=-0.025*st.h[i]-0.03*st.v[i];
+        st.h[i]=clamp(st.h[i]+st.v[i],-18,18);
+        if(Math.abs(st.v[i])<1e-4)st.v[i]=0;
+      }
+      for(let pass=0;pass<2;pass++){
+        for(let i=0;i<N;i++){
+          if(i>0){ld[i]=0.25*(st.h[i]-st.h[i-1]);st.v[i-1]+=ld[i];}
+          if(i<N-1){rd[i]=0.25*(st.h[i]-st.h[i+1]);st.v[i+1]+=rd[i];}
+        }
+        for(let i=0;i<N;i++){
+          if(i>0)st.h[i-1]+=ld[i];
+          if(i<N-1)st.h[i+1]+=rd[i];
+        }
+      }
+    }
+    energy=0; for(let i=0;i<N;i++) energy+=Math.abs(st.v[i]);
+    // bubbles
+    const y0=290-clamp(st.level,0,1)*280,dt=ms/1000;
+    if(st.level>0.1&&st.bubbles.length<MAXB&&Math.random()<0.05*n){
+      const x=60+Math.random()*180,r=1.6+Math.random()*2.8;
+      const by=150+Math.sqrt(Math.max(0,140*140-(x-150)*(x-150)))-r-3-Math.random()*8;
+      if(by>surf(x,y0)+14) st.bubbles.push({x,y:by,r,vy:22+r*9+Math.random()*14,ph:Math.random()*TAU,f:1.6+Math.random()*1.8,amp:1.5+Math.random()*2.5,xx:x});
+    }
+    for(let i=st.bubbles.length-1;i>=0;i--){
+      const b=st.bubbles[i];
+      b.y-=b.vy*dt; b.ph+=b.f*dt; b.xx=b.x+Math.sin(b.ph)*b.amp;
+      if(b.y-b.r*0.6<surf(b.xx,y0)){
+        splash(0.35+b.r*0.12,b.xx); st.bubbles.splice(i,1);
+      }
+    }
+  }
+
+  function wave(y0,back){
+    const off=back?9:0,hs=back?0.55:1,tt=st.t+(back?1.7:0);
+    ctx.beginPath();
+    let px=X(0),py=y0+(px-150)*slope()+st.h[0]*hs+amb(px,tt)+off;
+    ctx.moveTo(px,py);
+    for(let i=1;i<N;i++){
+      const x=X(i),y=y0+(x-150)*slope()+st.h[i]*hs+amb(x,tt)+off;
+      ctx.quadraticCurveTo(px,py,(px+x)/2,(py+y)/2);
+      px=x;py=y;
+    }
+    ctx.lineTo(px,py);ctx.lineTo(330,310);ctx.lineTo(-30,310);ctx.closePath();
+  }
+
+  function draw(){
+    if(!cvs||!ctx) return;
+    ctx.setTransform(k,0,0,k,0,0);
+    ctx.clearRect(0,0,300,300);
+    const lv=clamp(st.level,0,1);
+    if(lv<0.004&&st.bubbles.length===0) return;
+    const y0=290-lv*280;
+    ctx.save();
+    ctx.beginPath();ctx.arc(150,150,140,0,TAU);ctx.clip();
+    wave(y0,true);ctx.fillStyle=st.over?'rgba(255,138,128,.35)':'rgba(255,176,102,.35)';ctx.fill();
+    const g=ctx.createLinearGradient(0,y0-24,0,290);
+    g.addColorStop(0,st.over?'#ff9a8f':'#ffb066');g.addColorStop(1,'#e5584f');
+    wave(y0,false);ctx.fillStyle=g;ctx.fill();
+    // meniscus highlight
+    ctx.beginPath();
+    for(let i=0;i<N;i++){const x=X(i),y=y0+(x-150)*slope()+st.h[i]+amb(x,st.t);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+    ctx.strokeStyle='rgba(255,255,255,.4)';ctx.lineWidth=1.6;ctx.stroke();
+    // bubbles
+    for(const b of st.bubbles){
+      ctx.beginPath();ctx.arc(b.xx,b.y,b.r,0,TAU);
+      ctx.fillStyle='rgba(255,255,255,.14)';ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,.6)';ctx.lineWidth=1;ctx.stroke();
+      ctx.beginPath();ctx.arc(b.xx-b.r*0.35,b.y-b.r*0.35,Math.max(.6,b.r*0.22),0,TAU);
+      ctx.fillStyle='rgba(255,255,255,.75)';ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function loop(ts){
+    raf=0;
+    if(!cvs||!cvs.isConnected||document.hidden){ stop(); return; }
+    const dt=ts-last;
+    const active=touching||Math.abs(st.vel)>0.0008||Math.abs(st.lagV)>0.0005||Math.abs(st.target-st.level)>0.002||energy>14;
+    if(dt<(active?15:33)){ raf=requestAnimationFrame(loop); return; }
+    last=ts; step(Math.min(dt,50)); draw();
+    raf=requestAnimationFrame(loop);
+  }
+  function start(){ if(raf||document.hidden) return; last=performance.now(); raf=requestAnimationFrame(loop); startSensor(); }
+  function stop(){ if(raf){cancelAnimationFrame(raf);raf=0;} stopSensor(); if(cvs&&!cvs.isConnected) {cvs=null;ctx=null;} }
+
+  async function startSensor(){
+    if(sensor||starting) return;
+    const M=nativePlugin('Motion'); if(!M) return;
+    starting=true;
+    try{
+      const h=await M.addListener('accel',e=>{
+        const g=e&&e.accelerationIncludingGravity; if(!g||typeof g.x!=='number') return;
+        st.tilt=clamp(SIGN*g.x/6,-1,1);
+      });
+      if(!cvs||document.hidden){ try{h.remove()}catch{} } else sensor=h;
+    }catch{ sensor=null; }
+    starting=false;
+  }
+  function stopSensor(){ if(sensor){ try{sensor.remove()}catch{} sensor=null; } st.tilt=0; }
+
+  function attach(el){
+    cvs=el;
+    const dpr=Math.min(2,window.devicePixelRatio||1);
+    const w=Math.round((el.getBoundingClientRect().width||292)*dpr);
+    el.width=el.height=w; ctx=el.getContext('2d'); k=w/300;
+    const at=e=>{const r=el.getBoundingClientRect();return (e.clientX-r.left)/r.width*300;};
+    el.addEventListener('pointerdown',e=>{touching=true;splash(3.2,at(e));haptic.tap();start();});
+    el.addEventListener('pointermove',e=>{if(touching) splash(0.5,at(e));});
+    const up=()=>{touching=false;};
+    el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);el.addEventListener('pointerleave',up);
+  }
+
+  return{
+    setTarget(frac,over){
+      const f=clamp(frac,0,1);
+      if(st.init&&Math.abs(f-st.target)>0.004) st.pending=Math.abs(f-st.target);
+      st.target=f;st.over=!!over;
+      if(!st.init){st.init=true;st.level=0;}
+    },
+    splash,
+    sync(){
+      const el=document.getElementById('orb-canvas');
+      if(!el){ stop(); cvs=null; ctx=null; return; }
+      if(el!==cvs) attach(el);
+      if(reduce&&reduce.matches){ st.level=st.target; st.vel=0; draw(); return; }
+      if(st.pending>0){ splash(2+Math.min(st.pending*14,6)); st.pending=0; }
+      draw(); start();
+    },
+    pause(){ if(raf){cancelAnimationFrame(raf);raf=0;} stopSensor(); },
+    state(){ return{vel:st.vel,lagV:st.lagV,gap:st.target-st.level,energy,bubbles:st.bubbles.length}; },
+  };
+})();
+document.addEventListener('visibilitychange',()=>{
+  document.documentElement.style.setProperty('--fx',document.hidden?'paused':'running');
+  if(document.hidden) Orb.pause(); else Orb.sync();
+});
+
 function homeHeroMobile(c){
   if(S.showDailyLimitEdit) return renderDailyLimitCard(c);
   const lim=S.dailyLimit,hasLim=!!lim;
@@ -1283,12 +1504,8 @@ function homeHeroMobile(c){
     big=fmtAbs(c.balance);
     small='left this month';
   }
-  const rise=_renderedTab!=='home';
-  const y=(290-frac*280).toFixed(1);
-  const y2=(+y+10).toFixed(1);
+  Orb.setTarget(frac,over);
   const fs=big.length>9?38:big.length>7?46:58;
-  const wave=(yy)=>`M-75 ${yy} Q-37 ${(yy-18).toFixed(1)} 0 ${yy} T75 ${yy} T150 ${yy} T225 ${yy} T300 ${yy} T375 ${yy} V300 H-75 Z`;
-  const gA=over?'#ff9a8f':'#ffb066',gB=over?'#e5584f':'#e5584f';
   const pill=(l,v,col)=>`<div class="orb-pill"><div class="orb-pill-l">${l}</div><div class="orb-pill-v"${col?` style="color:${col}"`:''}>${v}</div></div>`;
   const pills=hasLim
     ?pill('Spent today',fmtAbs(c.todayTotal))+pill('Daily limit',fmtAbs(lim))+pill('Month left',fmtAbs(c.balance),c.balance>=0?'var(--amber)':'var(--red)')
@@ -1296,28 +1513,12 @@ function homeHeroMobile(c){
   ;
   return`
   <div class="orb-wrap">
-    <svg viewBox="0 0 300 300" role="img" aria-label="${esc(small)}: ${esc(big)}">
-      <defs>
-        <clipPath id="orb-clip"><circle cx="150" cy="150" r="140"/></clipPath>
-        <linearGradient id="orb-water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${gA}"/><stop offset="1" stop-color="${gB}"/></linearGradient>
-      </defs>
-      <circle cx="150" cy="150" r="146" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="2"/>
-      <circle cx="150" cy="150" r="140" fill="rgba(255,255,255,.05)"/>
-      <g clip-path="url(#orb-clip)">
-        <g${rise?' class="orb-rise"':''}>
-          <g class="orb-wave2"><path d="${wave(y2)}" fill="#ffb066" opacity=".35"/></g>
-          <g class="orb-wave1"><path d="${wave(y)}" fill="url(#orb-water)"/></g>
-        </g>
-      </g>
-      <circle cx="96" cy="196" r="5" fill="#fff" opacity=".22"/>
-      <circle cx="214" cy="222" r="8" fill="#fff" opacity=".16"/>
-      <circle cx="176" cy="252" r="4" fill="#fff" opacity=".2"/>
-    </svg>
+    <canvas id="orb-canvas" role="img" aria-label="${esc(small)}: ${esc(big)}"></canvas>
     <div class="orb-center">
       <div style="font-family:var(--display);font-weight:700;font-size:${fs}px;letter-spacing:-.03em;line-height:1;color:${over?'#ffd9d4':'#fff'}">${big}</div>
       <div style="font-size:14px;font-weight:500;margin-top:6px;color:#ffe9d6">${small}</div>
     </div>
-    ${hasLim?`<button class="btn-icon" id="edit-daily-limit" aria-label="Edit daily limit" style="position:absolute;right:0;top:0;width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);border-radius:20px;color:var(--t2)"><i class="ti ti-pencil" style="font-size:16px"></i></button>`:''}
+    ${hasLim?`<button class="btn-icon" id="edit-daily-limit" aria-label="Edit daily limit" style="position:absolute;right:0;top:0;width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);border-radius:20px;color:var(--t2);z-index:2"><i class="ti ti-pencil" style="font-size:16px"></i></button>`:''}
   </div>
   <div class="orb-pills">${pills}</div>
   ${hasLim?'':renderDailyLimitCard(c)}`;
@@ -1508,7 +1709,7 @@ function renderAdd(){
   ${_isPast?`<div style="text-align:center;font-size:11px;color:var(--amber);font-weight:600;margin:-2px 0 6px">
     <i class="ti ti-calendar-event" style="font-size:11px"></i> Adding to ${_dateVal.slice(5)}
   </div>`:''}`;
-  const addBtn=`<button id="do-add" ${has?'':'disabled'}
+  const addBtn=`<button id="do-add" class="${has?'fizz-btn':''}" ${has?'':'disabled'}
     style="width:100%;padding:15px;font-size:16px;font-weight:700;border-radius:999px;
     cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:9px;
     letter-spacing:.01em;margin-top:4px;
@@ -1756,6 +1957,7 @@ function render(){
     return;
   }
   ct.innerHTML=html;
+  Orb.sync();
   // Only animate when switching tabs, not on every numpad/state update
   if(S.tab!==_renderedTab){
     ct.classList.remove('anim');void ct.offsetHeight;ct.classList.add('anim');
