@@ -1738,8 +1738,14 @@ const Reminders=(()=>{
         if(y===dataYear&&m===dataMonth&&(paidIds||[]).includes(b.id)) continue;
         const day=Math.min(Math.max(1,parseInt(b.dueDay,10)||1),dim);
         const body=`${String(b.name||'Bill').slice(0,40)} · ${fmtAbs(b.amount)}`;
-        const before=new Date(y,m,day-1,HOUR,0,0),due=new Date(y,m,day,HOUR,0,0);
-        if(before.getTime()>min) out.push({at:before,title:'Bill due tomorrow',body});
+        let before=new Date(y,m,day-1,HOUR,0,0);
+        const due=new Date(y,m,day,HOUR,0,0);
+        if(before.getTime()<=min){
+          // added late: still warn this evening when the bill is due tomorrow
+          const eve=new Date(y,m,day-1,20,0,0);
+          before=(eve.getTime()>min&&eve.toDateString()===now.toDateString())?eve:null;
+        }
+        if(before) out.push({at:before,title:'Bill due tomorrow',body});
         if(due.getTime()>min) out.push({at:due,title:'Bill due today',body});
       }
     }
@@ -1814,10 +1820,18 @@ const Reminders=(()=>{
     ExpSwipe.toast('Bill reminders off');
   }
   const toggle=()=>get(KEY)==='on'?disable():enable();
+  async function test(){
+    const P=IS_NATIVE&&LN(); if(!P||get(KEY)!=='on') return;
+    try{
+      await P.schedule({notifications:[{id:9999,title:'Test reminder',body:'Bill reminders are working ✓',schedule:{at:new Date(Date.now()+5000)}}]});
+      ExpSwipe.toast('Test sent. It arrives in 5 seconds.');
+    }catch(e){ ExpSwipe.toast('Test failed: '+String((e&&e.message)||e).slice(0,80)); }
+  }
   function label(){
     if(!IS_NATIVE) return;
     const on=get(KEY)==='on',l=document.getElementById('menu-notif-label'),i=document.getElementById('menu-bell-icon');
     if(l) l.textContent=avail==='no'?'Reminders: unavailable':avail==='stuck'?'Reminders: no answer':on?'Reminders: on':'Reminders: off';
+    const t=document.getElementById('menu-test'); if(t) t.style.display=on?'flex':'none';
     if(i) i.className='ti '+(on?'ti-bell-ringing':'ti-bell-off');
   }
   function cardHtml(){
@@ -1835,7 +1849,7 @@ const Reminders=(()=>{
       </div></div>`;
   }
   const dismissCard=()=>put(CARD,'1');
-  return{plan,sync,enable,toggle,label,cardHtml,dismissCard,init};
+  return{plan,sync,enable,toggle,label,cardHtml,dismissCard,init,test};
 })();
 
 function homeHeroMobile(c){
@@ -1894,6 +1908,9 @@ function renderHome(){
           ${currentUser?`<div style="padding:8px 12px 6px;font-size:11px;color:var(--t3);border-bottom:1px solid var(--border);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(currentUser.email)}</div>`:''}
           <button id="menu-notif" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
             <i class="ti ti-bell" id="menu-bell-icon" style="font-size:16px"></i><span id="menu-notif-label">Reminders</span>
+          </button>
+          <button id="menu-test" style="display:none;width:100%;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
+            <i class="ti ti-bell-ringing" style="font-size:16px;color:var(--amber)"></i><span>Send test reminder</span>
           </button>
           <button id="menu-update" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
             <i class="ti ti-refresh" id="menu-update-icon" style="font-size:16px;color:var(--amber)"></i><span id="menu-update-label">Update app</span>
@@ -2757,6 +2774,7 @@ function bind(){
   }
   if($('menu-logout')) $('menu-logout').addEventListener('click',async()=>{ await _sb?.auth.signOut(); });
   if($('menu-notif'))  $('menu-notif').addEventListener('click',()=>{ if(IS_NATIVE) Reminders.toggle().then(()=>render()); else enableNotifications?.(); });
+  if($('menu-test'))   $('menu-test').addEventListener('click',()=>{ Reminders.test(); });
   if($('rem-on'))      $('rem-on').addEventListener('click',()=>{ Reminders.enable().then(()=>render()); });
   if($('rem-later'))   $('rem-later').addEventListener('click',()=>{ Reminders.dismissCard(); render(); });
   if($('menu-update')) $('menu-update').addEventListener('click',forceUpdate);
