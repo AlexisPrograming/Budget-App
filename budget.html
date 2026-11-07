@@ -718,7 +718,7 @@ input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.85) sepia(.5)
   .btn-action{padding:7px 16px;font-size:12px;min-height:unset}
 }
 /* ── NATIVE APP ── */
-.is-native #menu-notif,.is-native #menu-update,.is-native #sb-notif{display:none!important}
+.is-native #menu-update,.is-native #sb-notif{display:none!important}
 </style>
 </head>
 <body>
@@ -1707,9 +1707,96 @@ const ExpSwipe=(()=>{
     document.addEventListener('pointercancel',onCancel);
     document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('.edit-exp'); if(b) edit(+b.dataset.id); });
   }
-  return{init,remove,edit};
+  return{init,remove,edit,toast:showToast};
 })();
 ExpSwipe.init();
+
+// ── BILL REMINDERS: local notifications scheduled by the phone (no server, no Apple key) ──
+// A reminder the day before and on the due day at 9:00 for every unpaid bill, this month and next.
+const Reminders=(()=>{
+  const KEY='budget:reminders',CARD='budget:reminders_card',HOUR=9,MAX=60;
+  const LN=()=>nativePlugin('LocalNotifications');
+  const get=k=>{try{return localStorage.getItem(k)||''}catch{return ''}};
+  const put=(k,v)=>{try{localStorage.setItem(k,v)}catch{}};
+  let lastSig='',busy=false,listening=false;
+
+  // Pure: the notifications that should exist right now.
+  function plan(bills,paidIds,dataYear,dataMonth,now){
+    const out=[],min=now.getTime()+60000;
+    for(let off=0;off<2;off++){
+      const first=new Date(now.getFullYear(),now.getMonth()+off,1);
+      const y=first.getFullYear(),m=first.getMonth(),dim=new Date(y,m+1,0).getDate();
+      for(const b of bills||[]){
+        if(y===dataYear&&m===dataMonth&&(paidIds||[]).includes(b.id)) continue;
+        const day=Math.min(Math.max(1,parseInt(b.dueDay,10)||1),dim);
+        const body=`${String(b.name||'Bill').slice(0,40)} · ${fmtAbs(b.amount)}`;
+        const before=new Date(y,m,day-1,HOUR,0,0),due=new Date(y,m,day,HOUR,0,0);
+        if(before.getTime()>min) out.push({at:before,title:'Bill due tomorrow',body});
+        if(due.getTime()>min) out.push({at:due,title:'Bill due today',body});
+      }
+    }
+    return out.sort((a,b)=>a.at-b.at).slice(0,MAX);
+  }
+
+  async function clearAll(P){
+    const pend=await P.getPending();
+    if(pend&&pend.notifications&&pend.notifications.length) await P.cancel({notifications:pend.notifications.map(n=>({id:n.id}))});
+  }
+  async function sync(force){
+    const P=IS_NATIVE&&LN();
+    if(!P||get(KEY)!=='on'||!S.data) return;
+    listen(P);
+    const items=plan(S.bills,S.data.paidBills,S.data.year,S.data.month,new Date());
+    const sig=JSON.stringify(items.map(i=>[+i.at,i.body]));
+    if(!force&&sig===lastSig) return;
+    if(busy){ lastSig=''; return; }
+    busy=true;
+    try{
+      await clearAll(P);
+      if(items.length) await P.schedule({notifications:items.map((n,i)=>({id:i+1,title:n.title,body:n.body,schedule:{at:n.at}}))});
+      lastSig=sig;
+    }catch(e){ lastSig=''; console.warn('reminders',e); }
+    busy=false;
+  }
+  function listen(P){
+    if(listening) return; listening=true;
+    try{ P.addListener('localNotificationActionPerformed',()=>{ S.tab='bills'; render(); }).catch(()=>{listening=false}); }catch{ listening=false; }
+  }
+  async function enable(){
+    const P=IS_NATIVE&&LN(); if(!P) return false;
+    let st=await P.checkPermissions().catch(()=>({display:'denied'}));
+    if(st.display==='prompt'||st.display==='prompt-with-rationale') st=await P.requestPermissions().catch(()=>({display:'denied'}));
+    if(st.display!=='granted'){ put(KEY,'off'); ExpSwipe.toast('Notifications are blocked. Turn them on in iOS Settings → Budget.'); return false; }
+    put(KEY,'on'); lastSig=''; await sync(true); ExpSwipe.toast('Bill reminders on'); return true;
+  }
+  async function disable(){
+    put(KEY,'off'); lastSig='';
+    const P=IS_NATIVE&&LN(); if(P){ try{ await clearAll(P); }catch{} }
+    ExpSwipe.toast('Bill reminders off');
+  }
+  const toggle=()=>get(KEY)==='on'?disable():enable();
+  function label(){
+    if(!IS_NATIVE) return;
+    const on=get(KEY)==='on',l=document.getElementById('menu-notif-label'),i=document.getElementById('menu-bell-icon');
+    if(l) l.textContent=on?'Reminders: on':'Reminders: off';
+    if(i) i.className='ti '+(on?'ti-bell-ringing':'ti-bell-off');
+  }
+  function cardHtml(){
+    if(!IS_NATIVE||!LN()||get(KEY)||get(CARD)||!S.bills.length) return '';
+    return`<div class="card" id="rem-card">
+      <div style="display:flex;gap:12px;align-items:center">
+        <div class="cat-icon" style="background:var(--amber-dim)"><i class="ti ti-bell-ringing" style="color:var(--amber)"></i></div>
+        <div style="flex:1"><div style="font-size:14px;font-weight:600">Never miss a bill</div>
+        <div style="font-size:12px;color:var(--t2);margin-top:2px">A reminder the day before and on the day each bill is due.</div></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn-green" id="rem-on" style="padding:11px;font-size:13px">Turn on</button>
+        <button class="btn-ghost" id="rem-later" style="padding:0 16px;white-space:nowrap">Not now</button>
+      </div></div>`;
+  }
+  const dismissCard=()=>put(CARD,'1');
+  return{plan,sync,enable,toggle,label,cardHtml,dismissCard};
+})();
 
 function homeHeroMobile(c){
   if(S.showDailyLimitEdit) return renderDailyLimitCard(c);
@@ -1780,6 +1867,8 @@ function renderHome(){
   </div>
 
   ${S.showInc&&S.tab==='home'?incFormHtml(true):''}
+
+  ${S.tab==='home'?Reminders.cardHtml():''}
 
   <div class="home-cols">
     <!-- LEFT COLUMN: hero + daily limit + today -->
@@ -2180,6 +2269,8 @@ function render(){
   }
   ct.innerHTML=html;
   Orb.sync();
+  Reminders.sync();
+  Promise.resolve().then(Reminders.label);
   // Only animate when switching tabs, not on every numpad/state update
   if(S.tab!==_renderedTab){
     ct.classList.remove('anim');void ct.offsetHeight;ct.classList.add('anim');
@@ -2624,7 +2715,9 @@ function bind(){
     },{once:true});
   }
   if($('menu-logout')) $('menu-logout').addEventListener('click',async()=>{ await _sb?.auth.signOut(); });
-  if($('menu-notif'))  $('menu-notif').addEventListener('click',()=>{ enableNotifications?.(); });
+  if($('menu-notif'))  $('menu-notif').addEventListener('click',()=>{ if(IS_NATIVE) Reminders.toggle().then(()=>render()); else enableNotifications?.(); });
+  if($('rem-on'))      $('rem-on').addEventListener('click',()=>{ Reminders.enable().then(()=>render()); });
+  if($('rem-later'))   $('rem-later').addEventListener('click',()=>{ Reminders.dismissCard(); render(); });
   if($('menu-update')) $('menu-update').addEventListener('click',forceUpdate);
 
   // Update notification button state after every render
@@ -3041,6 +3134,7 @@ async function updateNotifButton(){
 }
 
 async function updateMenuNotifButton(){
+  if(IS_NATIVE){ Reminders.label(); return; }
   const icon=document.getElementById('menu-bell-icon');
   const label=document.getElementById('menu-notif-label');
   if(!icon) return;
