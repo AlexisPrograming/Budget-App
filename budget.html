@@ -736,9 +736,18 @@ input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.85) sepia(.5)
 const IS_NATIVE=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 if(IS_NATIVE) document.documentElement.classList.add('is-native');
 const _plug={};
+// The native bridge injects window.Capacitor with nativePromise/addListener/PluginHeaders; the
+// registerPlugin helper only exists in @capacitor/core, which this page does not load.
 const nativePlugin=n=>{
   if(!IS_NATIVE) return null;
-  try{ return _plug[n]||(_plug[n]=window.Capacitor.registerPlugin(n)); }catch{ return null; }
+  const C=window.Capacitor;
+  if(!C||typeof C.nativePromise!=='function') return null;
+  if(!(C.PluginHeaders||[]).some(h=>h.name===n)) return null; // not compiled into this build
+  return _plug[n]||(_plug[n]=new Proxy({},{get:(_,m)=>{
+    if(m==='then') return undefined;
+    if(m==='addListener') return (ev,cb)=>Promise.resolve(C.addListener(n,ev,cb));
+    return opts=>{ const p=C.nativePromise(n,String(m),opts||{}); p.catch(()=>{}); return p; };
+  }}));
 };
 const haptic={
   tap:()=>{ try{nativePlugin('Haptics')?.impact({style:'LIGHT'})}catch{} },
@@ -1778,9 +1787,14 @@ const Reminders=(()=>{
     probing=false;
     if(was!==avail+perm) render();
   }
-  function init(){ if(IS_NATIVE&&LN()&&avail===null&&!probing) probe(); }
+  function init(){
+    if(!IS_NATIVE||avail!==null||probing) return;
+    if(!LN()){ avail='no'; return; }
+    probe();
+  }
   async function enable(){
-    const P=IS_NATIVE&&LN(); if(!P) return false;
+    const P=IS_NATIVE&&LN();
+    if(!P){ avail='no'; ExpSwipe.toast('This build has no reminders plugin. Run npm install and cap sync, then reinstall from Xcode.'); label(); return false; }
     ExpSwipe.toast('Checking notifications…');
     if(avail===null||avail==='stuck'){ avail=null; await probe(); }
     if(avail==='no'){ ExpSwipe.toast('This build has no reminders plugin (registered: '+(registered()?'yes':'no')+'). Reinstall from Xcode.'); return false; }
