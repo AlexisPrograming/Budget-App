@@ -1763,24 +1763,33 @@ const Reminders=(()=>{
   }
   // Is the plugin really in this build, and what did the user answer in iOS?
   let avail=null,perm='',probing=false;
+  const withTimeout=(p,ms,what)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('no answer from iOS ('+what+')')),ms))]);
+  // Native plugins register themselves in Capacitor's header list; if it is not there the build lacks it.
+  const registered=()=>!!(window.Capacitor&&(window.Capacitor.PluginHeaders||[]).some(h=>h.name==='LocalNotifications'));
   async function probe(){
     if(probing) return; probing=true;
+    await Promise.resolve(); // never re-render from inside render()
     const was=avail+perm;
-    try{ const st=await LN().checkPermissions(); avail='yes'; perm=st.display; }
-    catch(e){ avail='no'; console.warn('reminders plugin',e); }
+    if(!registered()){ avail='no'; }
+    else{
+      try{ const st=await withTimeout(LN().checkPermissions(),4000,'checkPermissions'); avail='yes'; perm=st.display; }
+      catch(e){ avail=/no answer/.test(String(e&&e.message))?'stuck':'no'; console.warn('reminders plugin',e); }
+    }
     probing=false;
     if(was!==avail+perm) render();
   }
   function init(){ if(IS_NATIVE&&LN()&&avail===null&&!probing) probe(); }
   async function enable(){
     const P=IS_NATIVE&&LN(); if(!P) return false;
-    if(avail===null) await probe();
-    if(avail==='no'){ ExpSwipe.toast('This build has no reminders plugin. Reinstall the app from Xcode.'); return false; }
+    ExpSwipe.toast('Checking notifications…');
+    if(avail===null||avail==='stuck'){ avail=null; await probe(); }
+    if(avail==='no'){ ExpSwipe.toast('This build has no reminders plugin (registered: '+(registered()?'yes':'no')+'). Reinstall from Xcode.'); return false; }
+    if(avail==='stuck'){ ExpSwipe.toast('iOS is not answering the notifications request. Close and reopen the app, then try again.'); return false; }
     let st;
     try{
-      st=await P.checkPermissions();
+      st=await withTimeout(P.checkPermissions(),4000,'checkPermissions');
       if(st.display==='prompt'||st.display==='prompt-with-rationale') st=await P.requestPermissions();
-    }catch(e){ ExpSwipe.toast('Could not ask for permission: '+String((e&&e.message)||e).slice(0,80)); return false; }
+    }catch(e){ ExpSwipe.toast('Notifications error: '+String((e&&e.message)||e).slice(0,90)); return false; }
     perm=st.display;
     if(perm!=='granted'){ ExpSwipe.toast('Notifications are blocked. Turn them on in iOS Settings → Budget.'); return false; }
     put(KEY,'on'); lastSig=''; await sync(true); ExpSwipe.toast('Bill reminders on'); return true;
@@ -1794,7 +1803,7 @@ const Reminders=(()=>{
   function label(){
     if(!IS_NATIVE) return;
     const on=get(KEY)==='on',l=document.getElementById('menu-notif-label'),i=document.getElementById('menu-bell-icon');
-    if(l) l.textContent=avail==='no'?'Reminders: unavailable':on?'Reminders: on':'Reminders: off';
+    if(l) l.textContent=avail==='no'?'Reminders: unavailable':avail==='stuck'?'Reminders: no answer':on?'Reminders: on':'Reminders: off';
     if(i) i.className='ti '+(on?'ti-bell-ringing':'ti-bell-off');
   }
   function cardHtml(){
