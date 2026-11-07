@@ -1322,13 +1322,14 @@ function renderDailyLimitCard(c){
 const Orb=(()=>{
   const N=44,TAU=Math.PI*2,SIGN=-1,STEP=340/(N-1),MAXB=12;
   const reduce=window.matchMedia?matchMedia('(prefers-reduced-motion: reduce)'):null;
+  const rm=()=>!!(reduce&&reduce.matches);
   const st={level:0,vel:0,target:0,over:false,init:false,pending:0,
     tilt:0,lag:0,lagV:0,t:0,h:new Float32Array(N),v:new Float32Array(N),bubbles:[]};
   const ld=new Float32Array(N),rd=new Float32Array(N);
   let cvs=null,ctx=null,k=1,raf=0,last=0,sensor=null,starting=false,touching=false,energy=0;
   const X=i=>-20+i*STEP;
   const clamp=(v,a,b)=>v<a?a:v>b?b:v;
-  const amb=(x,t)=>1.5*Math.sin(x*0.045+t*1.6)+1.0*Math.sin(x*0.08-t*2.3);
+  const amb=(x,t)=>rm()?0:1.5*Math.sin(x*0.045+t*1.6)+1.0*Math.sin(x*0.08-t*2.3);
   const slope=()=>-clamp(st.lag,-1,1)*0.62;
   const surf=(x,y0)=>{
     const f=clamp((x+20)/STEP,0,N-1),i=f|0,j=Math.min(N-1,i+1),u=f-i;
@@ -1370,7 +1371,7 @@ const Orb=(()=>{
     energy=0; for(let i=0;i<N;i++) energy+=Math.abs(st.v[i]);
     // bubbles
     const y0=290-clamp(st.level,0,1)*280,dt=ms/1000;
-    if(st.level>0.1&&st.bubbles.length<MAXB&&Math.random()<0.05*n){
+    if(st.level>0.1&&!rm()&&st.bubbles.length<MAXB&&Math.random()<0.05*n){
       const x=60+Math.random()*180,r=1.6+Math.random()*2.8;
       const by=150+Math.sqrt(Math.max(0,140*140-(x-150)*(x-150)))-r-3-Math.random()*8;
       if(by>surf(x,y0)+14) st.bubbles.push({x,y:by,r,vy:22+r*9+Math.random()*14,ph:Math.random()*TAU,f:1.6+Math.random()*1.8,amp:1.5+Math.random()*2.5,xx:x});
@@ -1429,62 +1430,57 @@ const Orb=(()=>{
     raf=0;
     if(!cvs||!cvs.isConnected||document.hidden){ stop(); return; }
     const dt=ts-last;
-    const active=touching||Math.abs(st.vel)>0.0008||Math.abs(st.lagV)>0.0005||Math.abs(st.target-st.level)>0.002||energy>14;
+    const moving=touching||Math.abs(st.vel)>0.0008||Math.abs(st.lagV)>0.0005||Math.abs(st.tilt-st.lag)>0.002||Math.abs(st.target-st.level)>0.002;
+    const active=moving||energy>(rm()?0.6:14);
+    if(rm()&&!active){ draw(); return; }
     if(dt<(active?15:33)){ raf=requestAnimationFrame(loop); return; }
     last=ts; step(Math.min(dt,50)); draw();
     raf=requestAnimationFrame(loop);
   }
-  function start(){ if(raf||document.hidden) return; last=performance.now(); raf=requestAnimationFrame(loop); startSensor(); }
+  function start(){ attachMotion(); if(raf||document.hidden) return; last=performance.now(); raf=requestAnimationFrame(loop); }
   function stop(){ if(raf){cancelAnimationFrame(raf);raf=0;} stopSensor(); if(cvs&&!cvs.isConnected) {cvs=null;ctx=null;} }
 
-  const info={events:0,last:null,err:'',web:'off',plugin:'-'};
-  let webOn=false,taps=[];
-  // Works whatever unit the sensor reports (m/s² or g): only the direction of gravity matters.
+  const info={events:0,last:null,perm:'not asked',listening:false};
+  let webOn=false,asking=false,taps=[];
+  // Gravity direction only, so it works whatever unit the sensor reports (m/s² or g).
   function onAccel(e){
     const g=e&&e.accelerationIncludingGravity; if(!g||typeof g.x!=='number') return;
     info.events++; info.last=[g.x,g.y,g.z];
     const m=Math.hypot(g.x,g.y||0,g.z||0); if(m<0.5) return;
-    st.tilt=clamp(SIGN*(g.x/m)/0.45,-1,1);
+    const t=clamp(SIGN*(g.x/m)/0.45,-1,1), moved=Math.abs(t-st.tilt)>0.02;
+    st.tilt=t;
+    if(moved&&!raf&&cvs&&cvs.isConnected&&!document.hidden){ last=performance.now(); raf=requestAnimationFrame(loop); }
   }
-  async function startSensor(){
-    if(sensor||starting) return;
-    const M=nativePlugin('Motion');
-    info.plugin=M?'registered':'missing'; if(!M) return;
-    starting=true;
-    try{
-      const h=await M.addListener('accel',onAccel);
-      if(!cvs||document.hidden){ try{h.remove()}catch{} } else sensor=h;
-    }catch(e){ sensor=null; info.err=String((e&&e.message)||e); }
-    starting=false;
+  // The browser's own motion sensor (the Capacitor Motion plugin is web-only, so it adds nothing here).
+  function attachMotion(){
+    if(webOn) return;
+    window.addEventListener('devicemotion',onAccel); webOn=true; info.listening=true;
   }
-  // Fallback: the browser's own motion sensor. iOS asks for permission, which must come from a tap.
-  async function enableWebMotion(){
-    if(webOn||info.events>0) return;
+  // iOS only delivers motion after the user grants permission, and it must be asked from a tap.
+  async function askMotion(){
+    if(asking||info.events>0||!cvs||!cvs.isConnected) return;
+    asking=true;
     try{
-      if(typeof DeviceMotionEvent==='undefined'){ info.web='unsupported'; return; }
-      if(typeof DeviceMotionEvent.requestPermission==='function'){
-        const r=await DeviceMotionEvent.requestPermission();
-        if(r!=='granted'){ info.web='denied'; return; }
-      }
-      window.addEventListener('devicemotion',onAccel); webOn=true; info.web='on';
-    }catch(e){ info.web='error: '+((e&&e.message)||e); }
+      if(typeof DeviceMotionEvent==='undefined'){ info.perm='unsupported'; }
+      else if(typeof DeviceMotionEvent.requestPermission==='function'){ info.perm=await DeviceMotionEvent.requestPermission(); }
+      else info.perm='not required';
+    }catch(e){ info.perm='error: '+((e&&e.message)||e); }
+    asking=false;
   }
   function stopSensor(){
-    if(sensor){ try{sensor.remove()}catch{} sensor=null; }
-    if(webOn){ window.removeEventListener('devicemotion',onAccel); webOn=false; info.web='off'; }
+    if(webOn){ window.removeEventListener('devicemotion',onAccel); webOn=false; info.listening=false; }
     st.tilt=0;
   }
   function diagnose(){
     const f=v=>typeof v==='number'?v.toFixed(2):'-';
     return['Liquid diagnostics',
       'native app: '+IS_NATIVE,
-      'motion plugin: '+info.plugin+(sensor?' (listening)':''),
-      'plugin error: '+(info.err||'none'),
+      'motion permission: '+info.perm,
+      'listening: '+info.listening,
       'sensor events: '+info.events,
       'last x,y,z: '+(info.last?info.last.map(f).join(', '):'none'),
-      'web sensor: '+info.web,
       'tilt now: '+f(st.tilt),
-      'reduce motion: '+!!(reduce&&reduce.matches),
+      'reduce motion: '+rm()+(rm()?' (tilt and touch only)':''),
       'animating: '+!!raf].join('\n');
   }
 
@@ -1495,7 +1491,7 @@ const Orb=(()=>{
     el.width=el.height=w; ctx=el.getContext('2d'); k=w/300;
     const at=e=>{const r=el.getBoundingClientRect();return (e.clientX-r.left)/r.width*300;};
     el.addEventListener('pointerdown',e=>{
-      touching=true;splash(3.2,at(e));haptic.tap();start();enableWebMotion();
+      touching=true;splash(3.2,at(e));haptic.tap();start();
       const now=Date.now();taps=taps.filter(t=>now-t<2500);taps.push(now);
       if(taps.length>=5){taps=[];try{alert(diagnose())}catch{}}
     });
@@ -1516,14 +1512,16 @@ const Orb=(()=>{
       const el=document.getElementById('orb-canvas');
       if(!el){ stop(); cvs=null; ctx=null; return; }
       if(el!==cvs) attach(el);
-      if(reduce&&reduce.matches){ st.level=st.target; st.vel=0; draw(); return; }
-      if(st.pending>0){ splash(2+Math.min(st.pending*14,6)); st.pending=0; }
+      if(rm()){ st.level=st.target; st.vel=0; st.pending=0; st.bubbles.length=0; }
+      else if(st.pending>0){ splash(2+Math.min(st.pending*14,6)); st.pending=0; }
       draw(); start();
     },
     pause(){ if(raf){cancelAnimationFrame(raf);raf=0;} stopSensor(); },
+    askMotion,
     state(){ return{vel:st.vel,lagV:st.lagV,gap:st.target-st.level,energy,bubbles:st.bubbles.length}; },
   };
 })();
+document.addEventListener('click',()=>Orb.askMotion(),true);
 document.addEventListener('visibilitychange',()=>{
   document.documentElement.style.setProperty('--fx',document.hidden?'paused':'running');
   if(document.hidden) Orb.pause(); else Orb.sync();
