@@ -1437,20 +1437,56 @@ const Orb=(()=>{
   function start(){ if(raf||document.hidden) return; last=performance.now(); raf=requestAnimationFrame(loop); startSensor(); }
   function stop(){ if(raf){cancelAnimationFrame(raf);raf=0;} stopSensor(); if(cvs&&!cvs.isConnected) {cvs=null;ctx=null;} }
 
+  const info={events:0,last:null,err:'',web:'off',plugin:'-'};
+  let webOn=false,taps=[];
+  // Works whatever unit the sensor reports (m/s² or g): only the direction of gravity matters.
+  function onAccel(e){
+    const g=e&&e.accelerationIncludingGravity; if(!g||typeof g.x!=='number') return;
+    info.events++; info.last=[g.x,g.y,g.z];
+    const m=Math.hypot(g.x,g.y||0,g.z||0); if(m<0.5) return;
+    st.tilt=clamp(SIGN*(g.x/m)/0.45,-1,1);
+  }
   async function startSensor(){
     if(sensor||starting) return;
-    const M=nativePlugin('Motion'); if(!M) return;
+    const M=nativePlugin('Motion');
+    info.plugin=M?'registered':'missing'; if(!M) return;
     starting=true;
     try{
-      const h=await M.addListener('accel',e=>{
-        const g=e&&e.accelerationIncludingGravity; if(!g||typeof g.x!=='number') return;
-        st.tilt=clamp(SIGN*g.x/6,-1,1);
-      });
+      const h=await M.addListener('accel',onAccel);
       if(!cvs||document.hidden){ try{h.remove()}catch{} } else sensor=h;
-    }catch{ sensor=null; }
+    }catch(e){ sensor=null; info.err=String((e&&e.message)||e); }
     starting=false;
   }
-  function stopSensor(){ if(sensor){ try{sensor.remove()}catch{} sensor=null; } st.tilt=0; }
+  // Fallback: the browser's own motion sensor. iOS asks for permission, which must come from a tap.
+  async function enableWebMotion(){
+    if(webOn||info.events>0) return;
+    try{
+      if(typeof DeviceMotionEvent==='undefined'){ info.web='unsupported'; return; }
+      if(typeof DeviceMotionEvent.requestPermission==='function'){
+        const r=await DeviceMotionEvent.requestPermission();
+        if(r!=='granted'){ info.web='denied'; return; }
+      }
+      window.addEventListener('devicemotion',onAccel); webOn=true; info.web='on';
+    }catch(e){ info.web='error: '+((e&&e.message)||e); }
+  }
+  function stopSensor(){
+    if(sensor){ try{sensor.remove()}catch{} sensor=null; }
+    if(webOn){ window.removeEventListener('devicemotion',onAccel); webOn=false; info.web='off'; }
+    st.tilt=0;
+  }
+  function diagnose(){
+    const f=v=>typeof v==='number'?v.toFixed(2):'-';
+    return['Liquid diagnostics',
+      'native app: '+IS_NATIVE,
+      'motion plugin: '+info.plugin+(sensor?' (listening)':''),
+      'plugin error: '+(info.err||'none'),
+      'sensor events: '+info.events,
+      'last x,y,z: '+(info.last?info.last.map(f).join(', '):'none'),
+      'web sensor: '+info.web,
+      'tilt now: '+f(st.tilt),
+      'reduce motion: '+!!(reduce&&reduce.matches),
+      'animating: '+!!raf].join('\n');
+  }
 
   function attach(el){
     cvs=el;
@@ -1458,7 +1494,11 @@ const Orb=(()=>{
     const w=Math.round((el.getBoundingClientRect().width||292)*dpr);
     el.width=el.height=w; ctx=el.getContext('2d'); k=w/300;
     const at=e=>{const r=el.getBoundingClientRect();return (e.clientX-r.left)/r.width*300;};
-    el.addEventListener('pointerdown',e=>{touching=true;splash(3.2,at(e));haptic.tap();start();});
+    el.addEventListener('pointerdown',e=>{
+      touching=true;splash(3.2,at(e));haptic.tap();start();enableWebMotion();
+      const now=Date.now();taps=taps.filter(t=>now-t<2500);taps.push(now);
+      if(taps.length>=5){taps=[];try{alert(diagnose())}catch{}}
+    });
     el.addEventListener('pointermove',e=>{if(touching) splash(0.5,at(e));});
     const up=()=>{touching=false;};
     el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);el.addEventListener('pointerleave',up);
