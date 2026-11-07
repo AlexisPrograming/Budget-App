@@ -422,6 +422,7 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 .b-actions{display:flex;flex-direction:column;gap:4px;margin-right:3px}
 
 /* ── NUMPAD ── */
+input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.85) sepia(.5) saturate(2.2);opacity:.9}
 .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:8px 0}
 .nk{
   height:56px;border-radius:18px;
@@ -1329,7 +1330,7 @@ const Orb=(()=>{
   let cvs=null,ctx=null,k=1,raf=0,last=0,sensor=null,starting=false,touching=false,energy=0;
   const X=i=>-20+i*STEP;
   const clamp=(v,a,b)=>v<a?a:v>b?b:v;
-  const amb=(x,t)=>rm()?0:1.5*Math.sin(x*0.045+t*1.6)+1.0*Math.sin(x*0.08-t*2.3);
+  const amb=(x,t)=>rm()?0:1.5*Math.sin(x*0.045+t*0.8)+1.0*Math.sin(x*0.08-t*1.1);
   const slope=()=>-clamp(st.lag,-1,1)*0.62;
   const surf=(x,y0)=>{
     const f=clamp((x+20)/STEP,0,N-1),i=f|0,j=Math.min(N-1,i+1),u=f-i;
@@ -1345,15 +1346,15 @@ const Orb=(()=>{
     const n=Math.max(1,Math.min(3,Math.round(ms/16.7)));
     st.t+=ms/1000;
     for(let s=0;s<n;s++){
-      st.vel+=(st.target-st.level)*0.06-st.vel*0.24; st.level+=st.vel;
+      st.vel+=(st.target-st.level)*0.005-st.vel*0.1; st.level+=st.vel;
       if(Math.abs(st.vel)<1e-5&&Math.abs(st.target-st.level)<1e-4){st.vel=0;st.level=st.target;}
       const prev=st.lagV;
-      st.lagV+=(st.tilt-st.lag)*0.09-st.lagV*0.16; st.lag+=st.lagV;
+      st.lagV+=(st.tilt-st.lag)*0.006-st.lagV*0.11; st.lag+=st.lagV;
       if(Math.abs(st.lagV)<1e-5&&Math.abs(st.tilt-st.lag)<1e-4){st.lagV=0;st.lag=st.tilt;}
       const kick=(st.lagV-prev)*0.35;
       for(let i=0;i<N;i++){
         st.v[i]+=kick*(X(i)-150);
-        st.v[i]+=-0.025*st.h[i]-0.03*st.v[i];
+        st.v[i]+=-0.012*st.h[i]-0.09*st.v[i];
         st.h[i]=clamp(st.h[i]+st.v[i],-18,18);
         if(Math.abs(st.v[i])<1e-4)st.v[i]=0;
       }
@@ -1374,13 +1375,13 @@ const Orb=(()=>{
     if(st.level>0.1&&!rm()&&st.bubbles.length<MAXB&&Math.random()<0.05*n){
       const x=60+Math.random()*180,r=1.6+Math.random()*2.8;
       const by=150+Math.sqrt(Math.max(0,140*140-(x-150)*(x-150)))-r-3-Math.random()*8;
-      if(by>surf(x,y0)+14) st.bubbles.push({x,y:by,r,vy:22+r*9+Math.random()*14,ph:Math.random()*TAU,f:1.6+Math.random()*1.8,amp:1.5+Math.random()*2.5,xx:x});
+      if(by>surf(x,y0)+14) st.bubbles.push({x,y:by,r,vy:15+r*6+Math.random()*9,ph:Math.random()*TAU,f:1.6+Math.random()*1.8,amp:1.5+Math.random()*2.5,xx:x});
     }
     for(let i=st.bubbles.length-1;i>=0;i--){
       const b=st.bubbles[i];
       b.y-=b.vy*dt; b.ph+=b.f*dt; b.xx=b.x+Math.sin(b.ph)*b.amp;
       if(b.y-b.r*0.6<surf(b.xx,y0)){
-        splash(0.35+b.r*0.12,b.xx); st.bubbles.splice(i,1);
+        splash(0.25+b.r*0.08,b.xx); st.bubbles.splice(i,1);
       }
     }
   }
@@ -1491,11 +1492,11 @@ const Orb=(()=>{
     el.width=el.height=w; ctx=el.getContext('2d'); k=w/300;
     const at=e=>{const r=el.getBoundingClientRect();return (e.clientX-r.left)/r.width*300;};
     el.addEventListener('pointerdown',e=>{
-      touching=true;splash(3.2,at(e));haptic.tap();start();
+      touching=true;splash(2.2,at(e));haptic.tap();start();
       const now=Date.now();taps=taps.filter(t=>now-t<2500);taps.push(now);
       if(taps.length>=5){taps=[];try{alert(diagnose())}catch{}}
     });
-    el.addEventListener('pointermove',e=>{if(touching) splash(0.5,at(e));});
+    el.addEventListener('pointermove',e=>{if(touching) splash(0.3,at(e));});
     const up=()=>{touching=false;};
     el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);el.addEventListener('pointerleave',up);
   }
@@ -1513,7 +1514,7 @@ const Orb=(()=>{
       if(!el){ stop(); cvs=null; ctx=null; return; }
       if(el!==cvs) attach(el);
       if(rm()){ st.level=st.target; st.vel=0; st.pending=0; st.bubbles.length=0; }
-      else if(st.pending>0){ splash(2+Math.min(st.pending*14,6)); st.pending=0; }
+      else if(st.pending>0){ splash(1.5+Math.min(st.pending*10,4)); st.pending=0; }
       draw(); start();
     },
     pause(){ if(raf){cancelAnimationFrame(raf);raf=0;} stopSensor(); },
@@ -1739,9 +1740,9 @@ function renderAdd(){
   const dateInput=`
   <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
     <input id="add-note" type="text" placeholder="Note (optional)" value="${esc(S.addNote)}"
-      maxlength="${LIMITS.TEXT_NOTE}" style="flex:1;min-width:0;text-align:center;font-size:13px;font-weight:500" autocomplete="off" spellcheck="false">
+      maxlength="${LIMITS.TEXT_NOTE}" style="flex:1;min-width:0;text-align:center;font-size:16px;font-weight:500" autocomplete="off" spellcheck="false">
     <input id="add-date" type="date" value="${_dateVal}" min="${_monthStart}" max="${_today}"
-      style="width:auto;flex-shrink:0;font-size:13px;font-weight:600;font-family:var(--mono);padding:10px 8px;
+      style="width:auto;flex-shrink:0;font-size:16px;font-weight:600;font-family:var(--mono);padding:10px 8px;
       ${_isPast?'border-color:var(--amber);color:var(--amber);background:var(--amber-dim)':'color:var(--t2)'}">
   </div>
   ${_isPast?`<div style="text-align:center;font-size:11px;color:var(--amber);font-weight:600;margin:-2px 0 6px">
