@@ -437,7 +437,7 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 @media(prefers-reduced-motion:reduce){.es-sheet{animation:none}}
 #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 96px);transform:translateX(-50%);z-index:260;
   display:flex;align-items:center;gap:14px;padding:11px 16px;border-radius:24px;max-width:calc(100vw - 32px);
-  background:rgba(40,26,21,.96);border:1px solid var(--border2);box-shadow:0 12px 30px rgba(0,0,0,.45);font-size:14px}
+  background:#3a261d;border:1px solid rgba(255,176,102,.4);box-shadow:0 14px 34px rgba(0,0,0,.6);font-size:14px;color:var(--text)}
 #toast span{white-space:nowrap}
 #toast button{background:none;border:none;color:var(--amber);font-weight:700;font-size:14px;padding:4px 2px}
 .exp-meta{font-size:11px;color:var(--t2);margin-top:1px}
@@ -553,9 +553,8 @@ input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.85) sepia(.5)
   display:flex;align-items:center;justify-content:center;padding:1.5rem;
 }
 .confirm-box{
-  background:linear-gradient(145deg,rgba(255,248,228,0.07),rgba(255,248,228,0.03));
-  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
-  border:1px solid rgba(201,168,76,0.32);border-radius:var(--r);
+  background:linear-gradient(145deg,#33211a,#1f1511);
+  border:1px solid rgba(255,176,102,0.35);border-radius:var(--r);
   padding:20px;width:100%;max-width:360px;
   box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 0 1px rgba(201,168,76,0.08);
 }
@@ -1762,11 +1761,28 @@ const Reminders=(()=>{
     if(listening) return; listening=true;
     try{ P.addListener('localNotificationActionPerformed',()=>{ S.tab='bills'; render(); }).catch(()=>{listening=false}); }catch{ listening=false; }
   }
+  // Is the plugin really in this build, and what did the user answer in iOS?
+  let avail=null,perm='',probing=false;
+  async function probe(){
+    if(probing) return; probing=true;
+    const was=avail+perm;
+    try{ const st=await LN().checkPermissions(); avail='yes'; perm=st.display; }
+    catch(e){ avail='no'; console.warn('reminders plugin',e); }
+    probing=false;
+    if(was!==avail+perm) render();
+  }
+  function init(){ if(IS_NATIVE&&LN()&&avail===null&&!probing) probe(); }
   async function enable(){
     const P=IS_NATIVE&&LN(); if(!P) return false;
-    let st=await P.checkPermissions().catch(()=>({display:'denied'}));
-    if(st.display==='prompt'||st.display==='prompt-with-rationale') st=await P.requestPermissions().catch(()=>({display:'denied'}));
-    if(st.display!=='granted'){ put(KEY,'off'); ExpSwipe.toast('Notifications are blocked. Turn them on in iOS Settings → Budget.'); return false; }
+    if(avail===null) await probe();
+    if(avail==='no'){ ExpSwipe.toast('This build has no reminders plugin. Reinstall the app from Xcode.'); return false; }
+    let st;
+    try{
+      st=await P.checkPermissions();
+      if(st.display==='prompt'||st.display==='prompt-with-rationale') st=await P.requestPermissions();
+    }catch(e){ ExpSwipe.toast('Could not ask for permission: '+String((e&&e.message)||e).slice(0,80)); return false; }
+    perm=st.display;
+    if(perm!=='granted'){ ExpSwipe.toast('Notifications are blocked. Turn them on in iOS Settings → Budget.'); return false; }
     put(KEY,'on'); lastSig=''; await sync(true); ExpSwipe.toast('Bill reminders on'); return true;
   }
   async function disable(){
@@ -1778,24 +1794,25 @@ const Reminders=(()=>{
   function label(){
     if(!IS_NATIVE) return;
     const on=get(KEY)==='on',l=document.getElementById('menu-notif-label'),i=document.getElementById('menu-bell-icon');
-    if(l) l.textContent=on?'Reminders: on':'Reminders: off';
+    if(l) l.textContent=avail==='no'?'Reminders: unavailable':on?'Reminders: on':'Reminders: off';
     if(i) i.className='ti '+(on?'ti-bell-ringing':'ti-bell-off');
   }
   function cardHtml(){
-    if(!IS_NATIVE||!LN()||get(KEY)||get(CARD)||!S.bills.length) return '';
+    if(!IS_NATIVE||avail!=='yes'||get(KEY)||get(CARD)||!S.bills.length) return '';
+    const blocked=perm==='denied';
     return`<div class="card" id="rem-card">
       <div style="display:flex;gap:12px;align-items:center">
         <div class="cat-icon" style="background:var(--amber-dim)"><i class="ti ti-bell-ringing" style="color:var(--amber)"></i></div>
         <div style="flex:1"><div style="font-size:14px;font-weight:600">Never miss a bill</div>
-        <div style="font-size:12px;color:var(--t2);margin-top:2px">A reminder the day before and on the day each bill is due.</div></div>
+        <div style="font-size:12px;color:var(--t2);margin-top:2px">${blocked?'Notifications are blocked. Turn them on in iOS Settings → Budget.':'A reminder the day before and on the day each bill is due.'}</div></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:12px">
-        <button class="btn-green" id="rem-on" style="padding:11px;font-size:13px">Turn on</button>
-        <button class="btn-ghost" id="rem-later" style="padding:0 16px;white-space:nowrap">Not now</button>
+        ${blocked?'':'<button class="btn-green" id="rem-on" style="padding:11px;font-size:13px">Turn on</button>'}
+        <button class="btn-ghost" id="rem-later" style="padding:11px 16px;white-space:nowrap">${blocked?'Dismiss':'Not now'}</button>
       </div></div>`;
   }
   const dismissCard=()=>put(CARD,'1');
-  return{plan,sync,enable,toggle,label,cardHtml,dismissCard};
+  return{plan,sync,enable,toggle,label,cardHtml,dismissCard,init};
 })();
 
 function homeHeroMobile(c){
@@ -1850,7 +1867,7 @@ function renderHome(){
         <button id="profile-btn" style="width:34px;height:34px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">
           <i class="ti ti-user" style="font-size:16px;color:var(--t2)"></i>
         </button>
-        <div id="profile-menu" style="display:none;position:absolute;right:0;top:40px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:6px;min-width:170px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,0.4)">
+        <div id="profile-menu" style="display:none;position:absolute;right:0;top:40px;background:#2a1b14;border:1px solid rgba(255,255,255,0.16);border-radius:16px;padding:6px;min-width:190px;z-index:200;box-shadow:0 14px 36px rgba(0,0,0,0.6)">
           ${currentUser?`<div style="padding:8px 12px 6px;font-size:11px;color:var(--t3);border-bottom:1px solid var(--border);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(currentUser.email)}</div>`:''}
           <button id="menu-notif" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
             <i class="ti ti-bell" id="menu-bell-icon" style="font-size:16px"></i><span id="menu-notif-label">Reminders</span>
@@ -2269,6 +2286,7 @@ function render(){
   }
   ct.innerHTML=html;
   Orb.sync();
+  Reminders.init();
   Reminders.sync();
   Promise.resolve().then(Reminders.label);
   // Only animate when switching tabs, not on every numpad/state update
