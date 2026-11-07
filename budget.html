@@ -399,7 +399,10 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 .swipe:last-child .exp-row{border-bottom:none}
 .swipe-act{position:absolute;top:0;bottom:0;width:0;padding:0;overflow:hidden;display:flex;align-items:center;
   font-size:12px;font-weight:700;letter-spacing:.02em;white-space:nowrap;pointer-events:none}
-.swipe-in{display:flex;align-items:center;gap:7px;padding:0 16px;flex-shrink:0}
+.swipe-in{display:flex;align-items:center;gap:7px;padding:0 14px;flex-shrink:0}
+.swipe-act .lbl{display:flex;flex-direction:column;line-height:1.15}
+.swipe-act .lbl small{display:none;font-size:10px;font-weight:600;opacity:.85;letter-spacing:.03em}
+.swipe.armed .swipe-act .lbl small{display:block}
 .swipe-act i{font-size:17px;flex-shrink:0}
 .swipe-act-del{left:0;justify-content:flex-start;color:var(--red);background:linear-gradient(90deg,rgba(255,138,128,.30),rgba(255,138,128,.10))}
 .swipe-act-edit{right:0;justify-content:flex-end;color:var(--amber);background:linear-gradient(270deg,rgba(255,176,102,.26),rgba(255,176,102,.08))}
@@ -983,8 +986,8 @@ function expRow(e,canDel){
   </div>`;
   if(!canDel) return row;
   return`<div class="swipe" data-eid="${e.id}">
-    <div class="swipe-act swipe-act-del" aria-hidden="true"><span class="swipe-in"><i class="ti ti-trash"></i>Delete</span></div>
-    <div class="swipe-act swipe-act-edit" aria-hidden="true"><span class="swipe-in">Edit<i class="ti ti-pencil"></i></span></div>
+    <div class="swipe-act swipe-act-del" aria-hidden="true"><span class="swipe-in"><i class="ti ti-trash"></i><span class="lbl">Delete<small>release</small></span></span></div>
+    <div class="swipe-act swipe-act-edit" aria-hidden="true"><span class="swipe-in"><span class="lbl">Edit<small>release</small></span><i class="ti ti-pencil"></i></span></div>
     ${row}
   </div>`;
 }
@@ -1581,7 +1584,7 @@ document.addEventListener('visibilitychange',()=>{
 
 // ── EXPENSES: swipe left to edit, swipe right to delete (with undo) ──
 const ExpSwipe=(()=>{
-  const REVEAL=96,MAX=150,LOCK=8;
+  const REVEAL=96,MAX=140,LOCK=14,RATIO=0.6,DOM=1.8; // row moves at 60% of the finger; ~160px of travel to trigger
   const rmo=()=>!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
   let drag=null,toastTimer=0;
 
@@ -1672,12 +1675,12 @@ const ExpSwipe=(()=>{
     if(!drag||e.pointerId!==drag.pid) return;
     const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
     if(!drag.locked){
-      if(Math.abs(dy)>LOCK&&Math.abs(dy)>Math.abs(dx)){ drag=null; return; }
-      if(Math.abs(dx)<=LOCK) return;
+      if(Math.abs(dy)>LOCK&&Math.abs(dy)*DOM>Math.abs(dx)){ drag=null; return; }
+      if(Math.abs(dx)<=LOCK||Math.abs(dx)<Math.abs(dy)*DOM) return;
       drag.locked=true; drag.sw.classList.remove('snap');
       try{drag.sw.setPointerCapture(e.pointerId)}catch{}
     }
-    drag.dx=Math.max(-MAX,Math.min(MAX,dx)); paint(drag,drag.dx);
+    drag.dx=Math.max(-MAX,Math.min(MAX,dx*RATIO)); paint(drag,drag.dx);
   }
   function onUp(e){
     if(!drag||e.pointerId!==drag.pid) return;

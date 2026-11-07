@@ -1,4 +1,4 @@
-const CACHE = 'budget-v19';
+const CACHE = 'budget-v20';
 
 const PRECACHE = [
   '/',
