@@ -11,6 +11,13 @@
       "backgroundColor": "#0e0c09",
       "launchAutoHide": true,
       "launchShowDuration": 600
+    },
+    "LocalNotifications": {
+      "presentationOptions": [
+        "banner",
+        "list",
+        "sound"
+      ]
     }
   }
 }
