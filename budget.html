@@ -392,6 +392,51 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 .exp-row:hover{background:rgba(255,248,228,0.04)}
 .cat-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
 .exp-desc{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── SWIPE ROWS: left = edit, right = delete ── */
+.swipe{position:relative;overflow:hidden;border-radius:var(--r-xs)}
+.swipe .exp-row{position:relative;touch-action:pan-y;will-change:transform;border-bottom:1px solid var(--border)}
+.swipe:last-child .exp-row{border-bottom:none}
+.swipe-act{position:absolute;top:0;bottom:0;width:0;padding:0;overflow:hidden;display:flex;align-items:center;
+  font-size:12px;font-weight:700;letter-spacing:.02em;white-space:nowrap;pointer-events:none}
+.swipe-in{display:flex;align-items:center;gap:7px;padding:0 16px;flex-shrink:0}
+.swipe-act i{font-size:17px;flex-shrink:0}
+.swipe-act-del{left:0;justify-content:flex-start;color:var(--red);background:linear-gradient(90deg,rgba(255,138,128,.30),rgba(255,138,128,.10))}
+.swipe-act-edit{right:0;justify-content:flex-end;color:var(--amber);background:linear-gradient(270deg,rgba(255,176,102,.26),rgba(255,176,102,.08))}
+.swipe.armed .swipe-act-del{background:linear-gradient(90deg,rgba(255,138,128,.55),rgba(255,138,128,.22))}
+.swipe.armed .swipe-act-edit{background:linear-gradient(270deg,rgba(255,176,102,.5),rgba(255,176,102,.2))}
+.swipe.snap .exp-row{transition:transform .26s cubic-bezier(.2,.8,.2,1)}
+.swipe.snap .swipe-act{transition:width .26s cubic-bezier(.2,.8,.2,1)}
+.swipe.gone{transition:max-height .22s ease,opacity .22s ease;max-height:0!important;opacity:0}
+@media(prefers-reduced-motion:reduce){.swipe.snap .exp-row,.swipe.snap .swipe-act,.swipe.gone{transition:none}}
+.edit-exp{display:none}
+@media(min-width:768px) and (min-height:520px){.edit-exp{display:inline-flex}}
+
+/* ── EDIT SHEET + TOAST ── */
+.es-overlay{position:fixed;inset:0;z-index:300;display:flex;align-items:flex-end;justify-content:center;
+  background:rgba(8,4,3,.62);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.es-sheet{width:100%;max-width:440px;max-height:92dvh;overflow-y:auto;box-sizing:border-box;
+  background:linear-gradient(180deg,#2a1a14,#1a110e);border:1px solid var(--border2);border-bottom:none;
+  border-radius:28px 28px 0 0;padding:10px 20px calc(22px + env(safe-area-inset-bottom,0px));
+  animation:sheetUp .28s cubic-bezier(.2,.8,.2,1) both}
+.es-handle{width:42px;height:5px;border-radius:3px;background:rgba(255,255,255,.2);margin:0 auto 14px}
+.es-title{font-family:var(--display);font-weight:700;font-size:20px;margin-bottom:12px}
+.es-sheet label{margin:12px 0 6px}
+.es-sheet input{width:100%;font-size:16px}
+.es-cats{display:flex;flex-wrap:wrap;gap:8px}
+.es-chip{height:36px;padding:0 13px;border-radius:18px;background:rgba(255,255,255,.07);border:1px solid var(--border);
+  color:var(--t2);font-size:14px;display:inline-flex;align-items:center;gap:6px}
+.es-chip[aria-pressed=true]{background:rgba(255,176,102,.2);border:1.5px solid var(--amber);color:var(--text);font-weight:600}
+.es-err{min-height:18px;margin-top:10px;font-size:13px;color:var(--red)}
+.es-actions{display:flex;gap:10px;margin-top:10px}
+.es-actions .btn-green{flex:1}
+@media(min-width:768px) and (min-height:520px){.es-overlay{align-items:center}.es-sheet{border-radius:28px;border-bottom:1px solid var(--border2)}}
+@media(prefers-reduced-motion:reduce){.es-sheet{animation:none}}
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 96px);transform:translateX(-50%);z-index:260;
+  display:flex;align-items:center;gap:14px;padding:11px 16px;border-radius:24px;max-width:calc(100vw - 32px);
+  background:rgba(40,26,21,.96);border:1px solid var(--border2);box-shadow:0 12px 30px rgba(0,0,0,.45);font-size:14px}
+#toast span{white-space:nowrap}
+#toast button{background:none;border:none;color:var(--amber);font-weight:700;font-size:14px;padding:4px 2px}
 .exp-meta{font-size:11px;color:var(--t2);margin-top:1px}
 
 /* ── BILL CARDS ── */
@@ -927,14 +972,20 @@ function planGoal(goal){
 // ── HTML COMPONENTS ──
 function expRow(e,canDel){
   const c=catOf(e.category);
-  return`<div class="exp-row">
+  const row=`<div class="exp-row">
     <div class="cat-icon" style="background:${c.bg}"><i class="ti ${c.icon}" style="color:${c.color}"></i></div>
     <div style="flex:1;min-width:0">
       <div class="exp-desc">${esc(e.description)}</div>
       <div class="exp-meta">${e.date.slice(5)} &middot; ${esc(e.category)}</div>
     </div>
     <span style="font-size:14px;font-weight:600;font-family:var(--mono);color:var(--red);flex-shrink:0">${fmtAbs(e.amount)}</span>
-    ${canDel?`<button class="btn-icon del-exp" data-id="${e.id}" title="Delete"><i class="ti ti-trash" style="font-size:13px"></i></button>`:''}
+    ${canDel?`<button class="btn-icon edit-exp" data-id="${e.id}" title="Edit" aria-label="Edit expense"><i class="ti ti-pencil" style="font-size:13px"></i></button><button class="btn-icon del-exp" data-id="${e.id}" title="Delete"><i class="ti ti-trash" style="font-size:13px"></i></button>`:''}
+  </div>`;
+  if(!canDel) return row;
+  return`<div class="swipe" data-eid="${e.id}">
+    <div class="swipe-act swipe-act-del" aria-hidden="true"><span class="swipe-in"><i class="ti ti-trash"></i>Delete</span></div>
+    <div class="swipe-act swipe-act-edit" aria-hidden="true"><span class="swipe-in">Edit<i class="ti ti-pencil"></i></span></div>
+    ${row}
   </div>`;
 }
 
@@ -1527,6 +1578,135 @@ document.addEventListener('visibilitychange',()=>{
   document.documentElement.style.setProperty('--fx',document.hidden?'paused':'running');
   if(document.hidden) Orb.pause(); else Orb.sync();
 });
+
+// ── EXPENSES: swipe left to edit, swipe right to delete (with undo) ──
+const ExpSwipe=(()=>{
+  const REVEAL=96,MAX=150,LOCK=8;
+  const rmo=()=>!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+  let drag=null,toastTimer=0;
+
+  function showToast(msg,label,fn){
+    let t=document.getElementById('toast'); if(t) t.remove();
+    t=document.createElement('div'); t.id='toast'; t.setAttribute('role','status'); t.setAttribute('aria-live','polite');
+    t.innerHTML=`<span>${esc(msg)}</span>${label?`<button type="button">${esc(label)}</button>`:''}`;
+    document.body.appendChild(t);
+    if(label) t.querySelector('button').addEventListener('click',()=>{ clearTimeout(toastTimer); t.remove(); fn(); });
+    clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.remove(),5000);
+  }
+
+  function remove(id){
+    const i=S.data.expenses.findIndex(x=>x.id===id); if(i<0) return;
+    const [gone]=S.data.expenses.splice(i,1);
+    haptic.press(); saveData(); render();
+    showToast('Expense deleted','Undo',()=>{
+      if(S.data.expenses.some(x=>x.id===gone.id)) return;
+      S.data.expenses.push(gone); haptic.tap(); saveData(); render();
+    });
+  }
+
+  // ----- edit sheet (self-contained so a background refresh can't wipe what you typed) -----
+  function closeSheet(){ const o=document.getElementById('es-overlay'); if(o) o.remove(); document.removeEventListener('keydown',onKey); }
+  function onKey(e){ if(e.key==='Escape') closeSheet(); }
+  function edit(id){
+    const ex=S.data.expenses.find(x=>x.id===id); if(!ex) return;
+    closeSheet();
+    const now=new Date(),pad=n=>String(n).padStart(2,'0');
+    const today=todayStr(),monthStart=`${S.data.year}-${pad(S.data.month+1)}-01`;
+    let cat=ex.category;
+    const o=document.createElement('div'); o.id='es-overlay'; o.className='es-overlay';
+    o.innerHTML=`<div class="es-sheet" role="dialog" aria-modal="true" aria-labelledby="es-title">
+      <div class="es-handle"></div>
+      <div class="es-title" id="es-title">Edit expense</div>
+      <label for="es-amt">Amount ($)</label>
+      <input id="es-amt" type="number" inputmode="decimal" step="0.01" min="0.01" max="${LIMITS.AMT_MAX}" value="${ex.amount}">
+      <label for="es-note">Note</label>
+      <input id="es-note" type="text" maxlength="${LIMITS.TEXT_NOTE}" value="${esc(ex.description)}" autocomplete="off" spellcheck="false">
+      <label id="es-cat-l">Category</label>
+      <div class="es-cats" role="group" aria-labelledby="es-cat-l">${CATS.map(c=>`<button type="button" class="es-chip" data-cat="${esc(c.name)}" aria-pressed="${c.name===cat}"><i class="ti ${c.icon}" style="color:${c.color}"></i>${esc(c.name)}</button>`).join('')}</div>
+      <label for="es-date">Date</label>
+      <input id="es-date" type="date" min="${monthStart}" max="${today}" value="${esc(ex.date)}">
+      <div class="es-err" id="es-err" role="alert"></div>
+      <div class="es-actions"><button type="button" class="btn-green" id="es-save">Save changes</button><button type="button" class="btn-ghost" id="es-cancel" style="padding:0 18px">Cancel</button></div>
+    </div>`;
+    document.body.appendChild(o);
+    const $e=q=>o.querySelector(q), err=m=>{$e('#es-err').textContent=m};
+    o.addEventListener('pointerdown',e=>{ if(e.target===o) closeSheet(); });
+    $e('#es-cancel').addEventListener('click',closeSheet);
+    document.addEventListener('keydown',onKey);
+    o.querySelectorAll('.es-chip').forEach(b=>b.addEventListener('click',()=>{
+      cat=b.dataset.cat; o.querySelectorAll('.es-chip').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); haptic.tap();
+    }));
+    $e('#es-note').addEventListener('keydown',e=>{ if(e.key.length===1&&!/[\p{L}\p{N} .,\-'()&#]/u.test(e.key)) e.preventDefault(); });
+    $e('#es-note').addEventListener('input',e=>{ const c=sanitizeText(e.target.value,LIMITS.TEXT_NOTE); if(c!==e.target.value) e.target.value=c; });
+    $e('#es-amt').addEventListener('keydown',blockNumKeys);
+    $e('#es-save').addEventListener('click',()=>{
+      const amt=Math.round(parseFloat($e('#es-amt').value)*100)/100;
+      if(!amt||isNaN(amt)||amt<=0||amt>LIMITS.AMT_MAX) return err('Enter an amount greater than 0.');
+      const date=$e('#es-date').value||ex.date;
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||date<monthStart||date>today) return err('The date must be in this month and not in the future.');
+      const note=sanitizeText($e('#es-note').value,LIMITS.TEXT_NOTE).trim();
+      const live=S.data.expenses.find(x=>x.id===id);
+      if(!live){ closeSheet(); return; }
+      Object.assign(live,{amount:amt,description:note||cat,category:cat,date});
+      haptic.ok(); saveData(); render(); closeSheet();
+    });
+  }
+
+  // ----- gestures -----
+  const parts=sw=>({row:sw.querySelector('.exp-row'),del:sw.querySelector('.swipe-act-del'),edt:sw.querySelector('.swipe-act-edit')});
+  function paint(d,dx){
+    const {row,del,edt}=parts(d.sw);
+    row.style.transform=dx?`translateX(${dx}px)`:'';
+    del.style.width=dx>0?dx+'px':'0'; edt.style.width=dx<0?(-dx)+'px':'0';
+    const armed=Math.abs(dx)>=REVEAL;
+    d.sw.classList.toggle('armed',armed);
+    if(armed&&!d.armed) haptic.tap();
+    d.armed=armed;
+  }
+  function onDown(e){
+    if(e.pointerType==='mouse'&&e.button!==0) return;
+    const sw=e.target.closest&&e.target.closest('.swipe'); if(!sw||e.target.closest('button')) return;
+    drag={sw,id:+sw.dataset.eid,x:e.clientX,y:e.clientY,dx:0,locked:false,armed:false,pid:e.pointerId};
+  }
+  function onMove(e){
+    if(!drag||e.pointerId!==drag.pid) return;
+    const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+    if(!drag.locked){
+      if(Math.abs(dy)>LOCK&&Math.abs(dy)>Math.abs(dx)){ drag=null; return; }
+      if(Math.abs(dx)<=LOCK) return;
+      drag.locked=true; drag.sw.classList.remove('snap');
+      try{drag.sw.setPointerCapture(e.pointerId)}catch{}
+    }
+    drag.dx=Math.max(-MAX,Math.min(MAX,dx)); paint(drag,drag.dx);
+  }
+  function onUp(e){
+    if(!drag||e.pointerId!==drag.pid) return;
+    const d=drag; drag=null;
+    if(!d.locked) return;
+    const dx=d.dx;
+    d.sw.classList.add('snap');
+    if(dx>=REVEAL){ // swipe right: delete
+      const {row,del}=parts(d.sw); row.style.transform='translateX(100%)'; del.style.width='100%';
+      if(rmo()){ remove(d.id); return; }
+      d.sw.style.maxHeight=d.sw.offsetHeight+'px';
+      setTimeout(()=>{ d.sw.classList.add('gone'); },120);
+      setTimeout(()=>remove(d.id),340);
+    } else if(dx<=-REVEAL){ // swipe left: edit
+      paint(d,0); d.sw.classList.remove('armed'); edit(d.id);
+    } else paint(d,0);
+  }
+  function onCancel(e){ if(drag&&e.pointerId===drag.pid){ const d=drag; drag=null; if(d.locked){ d.sw.classList.add('snap'); paint(d,0); } } }
+
+  function init(){
+    document.addEventListener('pointerdown',onDown);
+    document.addEventListener('pointermove',onMove);
+    document.addEventListener('pointerup',onUp);
+    document.addEventListener('pointercancel',onCancel);
+    document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('.edit-exp'); if(b) edit(+b.dataset.id); });
+  }
+  return{init,remove,edit};
+})();
+ExpSwipe.init();
 
 function homeHeroMobile(c){
   if(S.showDailyLimitEdit) return renderDailyLimitCard(c);
@@ -2137,12 +2317,7 @@ function bind(){
   if($('cancel-inc')) $('cancel-inc').addEventListener('click',()=>{S.showInc=false;render()});
 
   // Delete expense / income
-  on('.del-exp','click',e=>{
-    const id=+e.currentTarget.dataset.id;
-    S.data.expenses=S.data.expenses.filter(x=>x.id!==id);
-    haptic.press();
-    saveData();render();
-  });
+  on('.del-exp','click',e=>{ ExpSwipe.remove(+e.currentTarget.dataset.id); });
   on('.del-inc','click',e=>{
     const id=+e.currentTarget.dataset.id;
     S.data.income=S.data.income.filter(x=>x.id!==id);
