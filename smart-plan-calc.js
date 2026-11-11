@@ -13,6 +13,15 @@
   const isMoney = n => typeof n === 'number' && Number.isFinite(n);
   const sumAmounts = list => round2((list || []).reduce((s, x) => s + (Number(x && x.amount) || 0), 0));
 
+  // Pay actually received per period: gross pay minus an estimated tax percent, or the net amount as is.
+  function netPay(amount, basis, taxPercent) {
+    const a = Number(amount);
+    if (!isMoney(a) || a <= 0) return 0;
+    if (basis !== 'gross') return round2(a);
+    const t = Math.min(90, Math.max(0, Number(taxPercent) || 0));
+    return round2(a * (1 - t / 100));
+  }
+
   // Pay per period -> normalized monthly income.
   function monthlyFromPay(amount, frequency, irregularMonthly) {
     const a = Number(amount);
@@ -106,6 +115,10 @@
     const pct = Number(i && i.savingsPercent);
     if (!(isMoney(pct) && pct >= 0 && pct <= 100)) errors.savingsPercent = 'Savings must be between 0 and 100%.';
     if (i && i.basis && !['net', 'gross'].includes(i.basis)) errors.basis = 'Choose net or gross.';
+    if (i && i.basis === 'gross' && i.taxPercent !== '' && i.taxPercent != null) {
+      const t = Number(i.taxPercent);
+      if (!(isMoney(t) && t >= 0 && t <= 90)) errors.taxPercent = 'Taxes must be between 0 and 90%.';
+    }
     return { ok: Object.keys(errors).length === 0, errors };
   }
 
@@ -136,7 +149,7 @@
   }
 
   return {
-    FREQUENCIES, AMT_MAX, round2, sumAmounts, monthlyFromPay, splitFiftyThirtyTwenty,
+    FREQUENCIES, AMT_MAX, round2, sumAmounts, netPay, monthlyFromPay, splitFiftyThirtyTwenty,
     suggestSavingsPercent, maxSavingsPercent, daysInMonthOf, buildPlan, validateInput,
     spendStatus, startOfWeek, sumBetween,
   };

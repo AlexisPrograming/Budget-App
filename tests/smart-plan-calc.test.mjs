@@ -171,3 +171,25 @@ test('sumBetween and sumAmounts', () => {
   assert.equal(C.sumAmounts(null), 0);
   assert.equal(C.sumAmounts([{ amount: 'x' }, {}]), 0);
 });
+
+test('netPay: net stays as is, gross loses the estimated tax', () => {
+  assert.equal(C.netPay(1000, 'net', 25), 1000);
+  assert.equal(C.netPay(1000, undefined, 25), 1000);
+  assert.equal(C.netPay(1000, 'gross', 20), 800);
+  assert.equal(C.netPay(1000, 'gross', 0), 1000);
+  assert.equal(C.netPay(1000, 'gross'), 1000);
+  assert.equal(C.netPay(1000, 'gross', 150), 100);    // capped at 90%
+  assert.equal(C.netPay(1000, 'gross', -10), 1000);
+  assert.equal(C.netPay(0, 'gross', 20), 0);
+  assert.equal(C.netPay('x', 'gross', 20), 0);
+  assert.equal(C.netPay(1234.56, 'gross', 18.5), 1006.17);
+});
+
+test('validateInput checks the tax percent only for gross pay', () => {
+  const base = { payAmount: 1000, frequency: 'monthly', savingsPercent: 10 };
+  assert.equal(C.validateInput({ ...base, basis: 'gross', taxPercent: 20 }).ok, true);
+  assert.ok(C.validateInput({ ...base, basis: 'gross', taxPercent: 95 }).errors.taxPercent);
+  assert.ok(C.validateInput({ ...base, basis: 'gross', taxPercent: -1 }).errors.taxPercent);
+  assert.equal(C.validateInput({ ...base, basis: 'gross', taxPercent: '' }).ok, true);
+  assert.equal(C.validateInput({ ...base, basis: 'net', taxPercent: 999 }).ok, true);
+});
