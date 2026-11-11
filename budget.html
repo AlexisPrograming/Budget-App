@@ -15,6 +15,8 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.50.0/dist/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
+<script src="/smart-plan-calc.js"></script>
+<script src="/onboarding.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=DM+Sans:wght@400;500;600&display=swap">
 <style>
@@ -871,6 +873,7 @@ const Store={
 // ── APP STATE ──
 const S={
   tab:'home',data:null,bills:[],archives:[],goals:[],
+  plan:null,onboarding:null,
   dailyLimit:0,showDailyLimitEdit:false,
   amtStr:'0',selCat:'Food',addNote:'',addDate:'',justAdded:false,
   importRows:[],_importSkipped:0,
@@ -893,6 +896,7 @@ async function load(){
   try{const r=await Store.cget('budget:archives_idx');S.archives=r?JSON.parse(r.value):[]}catch{S.archives=[]}
   try{const r=await Store.cget('budget:goals');      S.goals=r?JSON.parse(r.value):[]}catch{S.goals=[]}
   try{const r=await Store.cget('budget:daily_limit');S.dailyLimit=r?parseFloat(r.value)||0:0}catch{S.dailyLimit=0}
+  try{ if(typeof SmartPlan!=='undefined') await SmartPlan.load(); }catch{ S.plan=null; S.onboarding=null; }
 }
 
 // ── CALCULATIONS ──
