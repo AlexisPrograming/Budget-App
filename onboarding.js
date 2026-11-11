@@ -113,5 +113,66 @@ const SmartPlan = (() => {
     return { ok: true, plan, incomeNote };
   }
 
-  return { KEY_PLAN, KEY_OB, load, state, saveDraft, skip, prefill, compute, apply };
+  // ───────── Phase 2: where the user lands, skipping, resuming and editing ─────────
+  // The app has no URL router, so "/onboarding" is an in-app screen (S.tab === 'onboarding') that only
+  // exists after login, exactly like Home, Bills or Overview.
+  (function injectStyles() {
+    if (document.getElementById('smart-plan-style')) return;
+    const st = document.createElement('style');
+    st.id = 'smart-plan-style';
+    st.textContent = `
+      .ob-mode #nav,.ob-mode #sidebar{display:none!important}
+      .plan-banner{display:flex;align-items:center;gap:12px;margin-bottom:8px;padding:12px 14px}
+      .plan-banner .btn-icon{flex-shrink:0;padding:8px}
+      .ob-wrap{max-width:460px;margin:0 auto;padding-top:calc(env(safe-area-inset-top,0px) + 8px)}
+      .ob-title{font-family:var(--display);font-weight:700;font-size:24px;letter-spacing:-.02em}
+      .ob-actions{display:flex;gap:10px;margin-top:18px;align-items:center}`;
+    document.head.appendChild(st);
+  })();
+
+  // After login: new users go to the onboarding; everyone else lands on the dashboard as before.
+  function maybeRedirect() {
+    if (!S.onboarding) return false;            // the flag could not be read: never trap the user
+    if (S.confirmArc) return false;              // the month-rollover prompt comes first
+    if (state() === 'new') { S.tab = 'onboarding'; S.obEdit = false; return true; }
+    if (S.tab === 'onboarding') S.tab = 'home';  // stale screen from a previous session or user
+    return false;
+  }
+  function openEditor() { S.tab = 'onboarding'; S.obEdit = true; render(); }
+  async function skipNow() { await skip(); S.tab = 'home'; S.obEdit = false; render(); }
+  function leaveEditor() { S.tab = 'home'; S.obEdit = false; render(); }
+
+  // Discreet card on the dashboard until the plan exists. Never blocks anything.
+  function bannerHtml() {
+    if (!S.onboarding || state() === 'done' || S._planBannerHidden) return '';
+    return `<div class="card plan-banner" id="plan-banner">
+      <div class="cat-icon" style="background:var(--amber-dim)"><i class="ti ti-sparkles" style="color:var(--amber)"></i></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600">Smart Spending Plan</div>
+        <div style="font-size:12px;color:var(--t2);margin-top:2px">Know what you can spend each day while you save. Under 2 minutes.</div>
+      </div>
+      <button class="btn-green" id="plan-start" style="width:auto;padding:9px 16px;font-size:13px">Set up</button>
+      <button class="btn-icon" id="plan-hide" aria-label="Hide for now"><i class="ti ti-x" style="font-size:14px"></i></button>
+    </div>`;
+  }
+
+  // The guided steps arrive in phase 3; this is the screen they will live in.
+  function renderScreen() {
+    const back = !!S.obEdit;
+    return `<div class="ob-wrap"><div class="card" style="padding:22px">
+      <div class="ob-title">Smart Spending Plan</div>
+      <div style="font-size:14px;color:var(--t2);margin-top:8px;line-height:1.5">${state() === 'done' ? 'Your plan is saved. Editing it will be available here shortly.' : 'The guided setup is almost ready. You can come back to it any time from the dashboard or the profile menu.'}</div>
+      <div class="ob-actions">
+        ${back ? '<button class="btn-ghost" id="ob-back" style="padding:11px 20px">Back</button>' : '<button class="btn-green" id="ob-skip" style="padding:13px">Do it later</button>'}
+      </div></div></div>`;
+  }
+
+  function bind() {
+    const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
+    on('plan-start', openEditor); on('menu-plan', openEditor); on('sb-plan', openEditor);
+    on('plan-hide', () => { S._planBannerHidden = true; render(); });
+    on('ob-skip', skipNow); on('ob-back', leaveEditor);
+  }
+
+  return { KEY_PLAN, KEY_OB, load, state, saveDraft, skip, prefill, compute, apply, maybeRedirect, openEditor, bannerHtml, renderScreen, bind };
 })();

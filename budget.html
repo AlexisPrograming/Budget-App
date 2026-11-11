@@ -1925,6 +1925,9 @@ function renderHome(){
         </button>
         <div id="profile-menu" style="display:none;position:absolute;right:0;top:40px;background:#2a1b14;border:1px solid rgba(255,255,255,0.16);border-radius:16px;padding:6px;min-width:190px;z-index:200;box-shadow:0 14px 36px rgba(0,0,0,0.6)">
           ${currentUser?`<div style="padding:8px 12px 6px;font-size:11px;color:var(--t3);border-bottom:1px solid var(--border);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(currentUser.email)}</div>`:''}
+          <button id="menu-plan" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
+            <i class="ti ti-sparkles" style="font-size:16px;color:var(--amber)"></i><span>Smart plan</span>
+          </button>
           <button id="menu-notif" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
             <i class="ti ti-bell" id="menu-bell-icon" style="font-size:16px"></i><span id="menu-notif-label">Reminders</span>
           </button>
@@ -1947,6 +1950,7 @@ function renderHome(){
 
   ${S.showInc&&S.tab==='home'?incFormHtml(true):''}
 
+  ${S.tab==='home'&&typeof SmartPlan!=='undefined'?SmartPlan.bannerHtml():''}
   ${S.tab==='home'?Reminders.cardHtml():''}
 
   <div class="home-cols">
@@ -2340,13 +2344,14 @@ function render(){
   if(!ct){ console.error('render: #content missing'); return; }
   let html;
   try{
-    html={home:renderHome,add:renderAdd,bills:renderBills,overview:renderOverview,import:renderImport}[S.tab]?.()??'';
+    html={home:renderHome,add:renderAdd,bills:renderBills,overview:renderOverview,import:renderImport,onboarding:()=>typeof SmartPlan!=='undefined'?SmartPlan.renderScreen():renderHome()}[S.tab]?.()??'';
   }catch(err){
     ct.innerHTML=`<div style="padding:2rem;color:#f07070;font-family:monospace;white-space:pre-wrap">Render error (tab=${S.tab}):\n${err}</div>`;
     console.error('render error',err);
     return;
   }
   ct.innerHTML=html;
+  document.body.classList.toggle('ob-mode',S.tab==='onboarding');
   Orb.sync();
   Reminders.init();
   Reminders.sync();
@@ -2390,6 +2395,9 @@ function render(){
     <div style="margin-top:auto;padding:0.75rem 0.5rem 0">
       <div class="sb-divider"></div>
       ${currentUser?`<div style="padding:6px 1.25rem 4px;font-size:11px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(currentUser.email)}</div>`:''}
+      <button class="sb-nav-item" id="sb-plan" title="Smart Spending Plan">
+        <i class="ti ti-sparkles"></i><span>Smart plan</span>
+      </button>
       <button class="sb-nav-item" id="sb-notif" title="Bill reminders">
         <i class="ti ti-bell" id="sb-bell-icon"></i><span id="sb-notif-label">Reminders</span>
       </button>
@@ -2408,6 +2416,7 @@ function render(){
 function bind(){
   const $=id=>document.getElementById(id);
   const on=(sel,ev,fn)=>document.querySelectorAll(sel).forEach(el=>el.addEventListener(ev,fn));
+  if(typeof SmartPlan!=='undefined') SmartPlan.bind();
 
   // Tab switching
   on('[data-tab]','click',e=>{
@@ -3133,6 +3142,7 @@ async function launchApp(user){
       S.confirmArc=true;
     }
   }
+  try{ if(typeof SmartPlan!=='undefined') SmartPlan.maybeRedirect(); }catch{}
   try{ render(); }catch(e){
     const ct=document.getElementById('content');
     if(ct) ct.innerHTML=`<div style="padding:2rem;color:#f07070;font-family:monospace;white-space:pre-wrap">Boot error:\n${e}</div>`;
@@ -3143,7 +3153,7 @@ async function launchApp(user){
 }
 
 async function boot(){
-  if(!_sb){ await load(); render(); return; }
+  if(!_sb){ await load(); try{ if(typeof SmartPlan!=='undefined') SmartPlan.maybeRedirect(); }catch{} render(); return; }
 
   // Always show login immediately — no blank spinner risk
   renderLogin();
