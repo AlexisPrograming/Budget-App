@@ -452,6 +452,14 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 .cc-chip{flex:0 0 auto;height:30px;padding:0 12px;border-radius:15px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--t2);font-family:var(--font);font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
 .cc-chip[aria-pressed=true]{background:rgba(255,176,102,.2);border:1.5px solid var(--amber);color:var(--text)}
 .cc-tag{color:var(--amber);font-weight:600}
+.cd-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.cd-row:last-child{border-bottom:none}
+.cd-ic{width:34px;height:34px;border-radius:10px;background:rgba(255,176,102,.14);display:flex;align-items:center;justify-content:center;color:var(--amber);flex-shrink:0}
+.cd-main{flex:1;min-width:0}.cd-name{font-size:14px;font-weight:600}.cd-sub{font-size:11px;color:var(--t2);margin-top:1px}
+.cd-amt{font-size:14px;font-weight:600;font-family:var(--mono);flex-shrink:0}
+.cd-late{color:var(--red);font-weight:700}
+.cd-pay{padding:8px 0 12px;border-bottom:1px solid var(--border)}
+.cd-err{color:var(--red);font-size:12px;min-height:16px;margin:2px 0 6px}
 
 /* ── BILL CARDS ── */
 .bill-card{
@@ -883,6 +891,7 @@ const S={
   plan:null,onboarding:null,cards:[],cardStatements:[],
   dailyLimit:0,showDailyLimitEdit:false,
   amtStr:'0',selCat:'Food',addNote:'',addDate:'',addCard:null,justAdded:false,
+  cardForm:null,payForm:null,cardMsg:'',
   importRows:[],_importSkipped:0,
   showBillForm:false,editBillId:null,
   billForm:{name:'',category:'Housing',amount:'',dueDay:1},
@@ -2204,6 +2213,63 @@ function renderAdd(){
 }
 
 // ── TAB: BILLS ──
+function fmtDue(iso){ const m=+iso.slice(5,7)-1,d=+iso.slice(8,10); return MONTHS[m].slice(0,3)+' '+d; }
+function cardFormHtml(){
+  const f=S.cardForm;
+  return`<div class="card" style="margin-top:8px">
+    <div style="font-size:13px;font-weight:600;margin-bottom:12px">${f.editId?'Edit card':'New credit card'}</div>
+    <div class="form-row"><label>Name</label><input id="cf-name" type="text" placeholder="Visa, Amex…" value="${esc(f.name)}" maxlength="30" autocomplete="off" spellcheck="false"></div>
+    <div class="form-row-2">
+      <div><label>Payment due day</label><select id="cf-day">${Array.from({length:31},(_,i)=>`<option value="${i+1}"${+f.dueDay===i+1?' selected':''}>Day ${i+1}</option>`).join('')}</select></div>
+      ${f.editId?'<div></div>':`<div><label>Owed now ($)</label><input id="cf-owed" type="number" placeholder="0.00 (optional)" min="0" max="${LIMITS.AMT_MAX}" step=".01" value="${esc(f.owed)}" inputmode="decimal"></div>`}
+    </div>
+    ${f.editId?'':'<div style="font-size:11px;color:var(--t2);margin:-4px 0 8px">What you owe on this card today. It will show as due this month.</div>'}
+    <div class="cd-err" id="cf-err" role="alert">${esc(f.err||'')}</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-green" id="cf-save" style="padding:12px;font-size:13px">Save card</button>
+      <button class="btn-ghost" id="cf-cancel" style="padding:12px 18px">Cancel</button>
+    </div>
+  </div>`;
+}
+function cardsSectionHtml(){
+  if(typeof Cards==='undefined') return '';
+  const act=Cards.active();
+  const sm=Cards.summary(S.data.year,S.data.month);
+  const dueTotal=sm.dueNow.total;
+  const stRow=(it,later)=>{
+    const open=S.payForm&&S.payForm.id===it.id;
+    return`<div class="cd-row"><div class="cd-ic"><i class="ti ti-credit-card"></i></div>
+      <div class="cd-main"><div class="cd-name">${esc(it.name)}${it.source==='carryover'?' <span class="pill">carried over</span>':''}</div>
+      <div class="cd-sub${it.overdue?' cd-late':''}">${it.overdue?'Overdue · ':'Due '}${fmtDue(it.dueISO)}</div></div>
+      <span class="cd-amt">${fmtAbs(it.amount)}</span>
+      ${later?'':`<button class="mark-btn card-pay-open" data-id="${esc(it.id)}">pay</button>`}</div>
+      ${open?`<div class="cd-pay"><label for="pf-amt">Amount paid ($)</label>
+        <input id="pf-amt" type="number" min="0.01" max="${it.amount}" step=".01" value="${esc(S.payForm.amount)}" inputmode="decimal">
+        <div style="font-size:11px;color:var(--t2);margin:4px 0">Paying less leaves the rest as next month's payment.</div>
+        <div class="cd-err" id="pf-err" role="alert">${esc(S.payForm.err||'')}</div>
+        <div style="display:flex;gap:8px"><button class="btn-green" id="pf-save" style="padding:10px;font-size:13px">Confirm payment</button><button class="btn-ghost" id="pf-cancel" style="padding:10px 18px">Cancel</button></div></div>`:''}`;
+  };
+  const building=sm.building.rows.map(r=>`<div class="cd-row"><div class="cd-ic"><i class="ti ti-credit-card"></i></div>
+      <div class="cd-main"><div class="cd-name">${esc(r.name)}</div><div class="cd-sub">${r.count} purchase${r.count===1?'':'s'} this month</div></div>
+      <span class="cd-amt">${fmtAbs(r.amount)}</span></div>`).join('');
+  const nextDue=act.length?'next month':'';
+  return`
+  <div class="sec-lbl" style="margin-top:14px"><span class="sec-lbl-l">Credit cards</span>${dueTotal>0?`<span style="font-size:12px;font-weight:700;color:var(--amber)">${fmtAbs(dueTotal)} due</span>`:''}</div>
+  <div class="card-sm" style="margin-bottom:10px">
+    ${sm.dueNow.items.length?`<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px">Due this month</div>${sm.dueNow.items.map(i=>stRow(i,false)).join('')}`:''}
+    ${sm.building.total>0?`<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;margin:${sm.dueNow.items.length?'10px':'0'} 0 2px">Building for ${nextDue} · ${fmtAbs(sm.building.total)}</div>${building}`:''}
+    ${sm.dueLater.items.length?`<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;margin:10px 0 2px">Later</div>${sm.dueLater.items.map(i=>stRow(i,true)).join('')}`:''}
+    ${!sm.dueNow.items.length&&!sm.building.total&&!sm.dueLater.items.length?`<div style="font-size:12px;color:var(--t2);padding:4px 0">${act.length?'Nothing owed on your cards. Pick a card when you add an expense and it builds up here.':'Add a card to track what you pay on credit.'}</div>`:''}
+  </div>
+  ${S.cardMsg?`<div class="cd-err" role="alert">${esc(S.cardMsg)}</div>`:''}
+  ${act.length?`<div class="card-sm" style="margin-bottom:10px"><div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px">My cards</div>
+    ${act.map(c=>`<div class="cd-row"><div class="cd-ic"><i class="ti ti-credit-card"></i></div>
+      <div class="cd-main"><div class="cd-name">${esc(c.name)}</div><div class="cd-sub">Due day ${c.dueDay}</div></div>
+      <button class="btn-icon card-edit" data-id="${esc(c.id)}" title="Edit card" aria-label="Edit card"><i class="ti ti-edit" style="font-size:13px"></i></button>
+      <button class="btn-icon card-del" data-id="${esc(c.id)}" title="Remove card" aria-label="Remove card"><i class="ti ti-trash" style="font-size:13px"></i></button></div>`).join('')}</div>`:''}
+  ${S.cardForm?cardFormHtml():(act.length<10?`<button id="card-add" class="btn-ghost" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;margin-bottom:6px"><i class="ti ti-plus" style="font-size:16px"></i> Add credit card</button>`:'')}`;
+}
+
 function renderBills(){
   const c=calc();
   return`
@@ -2255,6 +2321,8 @@ function renderBills(){
   <div class="sec-lbl" style="margin-top:6px"><span class="sec-lbl-l">Paid · ${c.paid_.length}</span><span style="font-size:12px;font-weight:700;color:var(--green)">${fmtAbs(c.totalPaid)}</span></div>
   ${c.paid_.map(b=>billCard(b,true)).join('')}`:''
   }
+
+  ${cardsSectionHtml()}
 
   ${S.bills.length>0&&c.totalInc>0?`
   <div style="padding:10px 0;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:12px;color:var(--t2);font-weight:600;margin-top:4px">
@@ -2733,6 +2801,43 @@ function bind(){
     S.bills=S.bills.filter(x=>x.id!==id);
     S.data.paidBills=(S.data.paidBills||[]).filter(x=>x!==id);
     saveBills();saveData();render();
+  });
+
+  // Credit cards
+  const cardErrMsg={has_balance:'Pay off what you owe on this card first.',too_many:'You can have up to 10 cards.',not_found:'That card no longer exists.'};
+  on('.card-pay-open','click',e=>{
+    const id=e.currentTarget.dataset.id,st=(S.cardStatements||[]).find(x=>x.id===id); if(!st) return;
+    S.payForm=S.payForm&&S.payForm.id===id?null:{id,amount:String(st.amount),err:''}; S.cardMsg=''; render();
+  });
+  if($('pf-amt')){ $('pf-amt').addEventListener('keydown',blockNumKeys); $('pf-amt').addEventListener('input',e=>{const c=sanitizeAmt(e.target.value);S.payForm.amount=c;if(e.target.value!==c)e.target.value=c;}); }
+  if($('pf-cancel')) $('pf-cancel').addEventListener('click',()=>{S.payForm=null;render();});
+  if($('pf-save')) $('pf-save').addEventListener('click',async()=>{
+    const id=S.payForm.id,st=(S.cardStatements||[]).find(x=>x.id===id),amt=parseFloat(S.payForm.amount);
+    const r=await Cards.pay(id,amt);
+    if(!r.ok){ S.payForm.err=r.error==='exceeds_balance'?'That is more than you owe on this statement.':'Enter an amount greater than 0.'; render(); return; }
+    S.payForm=null; haptic.ok(); render();
+    ExpSwipe.toast('Card payment saved','Undo',async()=>{ await Cards.undoPay(id); render(); });
+  });
+  if($('card-add')) $('card-add').addEventListener('click',()=>{S.cardForm={editId:null,name:'',dueDay:15,owed:'',err:''};S.cardMsg='';render();});
+  on('.card-edit','click',e=>{const c=(S.cards||[]).find(x=>x.id===e.currentTarget.dataset.id); if(!c) return; S.cardForm={editId:c.id,name:c.name,dueDay:c.dueDay,owed:'',err:''};S.cardMsg='';render();});
+  if($('cf-cancel')) $('cf-cancel').addEventListener('click',()=>{S.cardForm=null;render();});
+  if($('cf-name')){
+    $('cf-name').addEventListener('keydown',e=>{if(e.key.length===1&&!/[\p{L}\p{N} .,\-'()&#]/u.test(e.key))e.preventDefault()});
+    $('cf-name').addEventListener('input',e=>{const c=sanitizeText(e.target.value,30);S.cardForm.name=c;if(e.target.value!==c)e.target.value=c;});
+  }
+  if($('cf-day')) $('cf-day').addEventListener('change',e=>{S.cardForm.dueDay=+e.target.value;});
+  if($('cf-owed')){ $('cf-owed').addEventListener('keydown',blockNumKeys); $('cf-owed').addEventListener('input',e=>{const c=sanitizeAmt(e.target.value);S.cardForm.owed=c;if(e.target.value!==c)e.target.value=c;}); }
+  if($('cf-save')) $('cf-save').addEventListener('click',async()=>{
+    const f=S.cardForm;
+    const r=f.editId?await Cards.updateCard(f.editId,{name:f.name,dueDay:f.dueDay}):await Cards.addCard({name:f.name,dueDay:f.dueDay,owed:f.owed});
+    if(!r.ok){ f.err=r.errors?Object.values(r.errors)[0]:(cardErrMsg[r.error]||'Could not save the card.'); render(); return; }
+    S.cardForm=null; haptic.ok(); render();
+  });
+  on('.card-del','click',async e=>{
+    const c=(S.cards||[]).find(x=>x.id===e.currentTarget.dataset.id); if(!c) return;
+    if(!confirm('Remove '+c.name+'? Past purchases keep their history.')) return;
+    const r=await Cards.archiveCard(c.id);
+    S.cardMsg=r.ok?'':(cardErrMsg[r.error]||'Could not remove the card.'); render();
   });
 
   on('.view-arc','click',async e=>{
