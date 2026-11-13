@@ -1391,8 +1391,9 @@ function renderDailyLimitCard(c){
 const Orb=(()=>{
   const N=44,TAU=Math.PI*2,SIGN=-1,STEP=340/(N-1),MAXB=12;
   const reduce=window.matchMedia?matchMedia('(prefers-reduced-motion: reduce)'):null;
-  // "Full" lets the liquid use all its motion even when iOS Reduce Motion is on (chosen in the profile menu).
-  let fxFull=false; try{ fxFull=localStorage.getItem('budget:fx')==='full'; }catch{}
+  // The liquid's waves, bubbles and fizz are ON by default, even when iOS Reduce Motion is on.
+  // Only an explicit "calm" choice in the profile menu turns them off (and it is remembered).
+  let fxFull=true; try{ fxFull=localStorage.getItem('budget:fx')!=='calm'; }catch{}
   document.documentElement.classList.toggle('fx-full',fxFull);
   const rm=()=>!!(reduce&&reduce.matches)&&!fxFull;
   const st={level:0,vel:0,target:0,over:false,init:false,pending:0,
@@ -1596,7 +1597,7 @@ const Orb=(()=>{
     },
     pause(){ if(raf){cancelAnimationFrame(raf);raf=0;} stopSensor(); },
     askMotion,
-    setFx(v){ fxFull=v==='full'; try{localStorage.setItem('budget:fx',v)}catch{} document.documentElement.classList.toggle('fx-full',fxFull); if(cvs&&cvs.isConnected){ if(rm()){st.bubbles.length=0;} start(); } },
+    setFx(v){ fxFull=v!=='calm'; try{localStorage.setItem('budget:fx',v)}catch{} document.documentElement.classList.toggle('fx-full',fxFull); if(cvs&&cvs.isConnected){ if(rm()){st.bubbles.length=0;} start(); } },
     fxFull:()=>fxFull,
     systemReduced:()=>!!(reduce&&reduce.matches),
     state(){ return{vel:st.vel,lagV:st.lagV,gap:st.target-st.level,energy,bubbles:st.bubbles.length}; },
@@ -2805,7 +2806,7 @@ function bind(){
   }
   if($('menu-logout')) $('menu-logout').addEventListener('click',async()=>{ await _sb?.auth.signOut(); });
   if($('menu-notif'))  $('menu-notif').addEventListener('click',()=>{ if(IS_NATIVE) Reminders.toggle().then(()=>render()); else enableNotifications?.(); });
-  if($('menu-fx'))     $('menu-fx').addEventListener('click',()=>{ Orb.setFx(Orb.fxFull()?'auto':'full'); render(); });
+  if($('menu-fx'))     $('menu-fx').addEventListener('click',()=>{ Orb.setFx(Orb.fxFull()?'calm':'full'); render(); });
   if($('menu-test'))   $('menu-test').addEventListener('click',()=>{ Reminders.test(); });
   if($('rem-on'))      $('rem-on').addEventListener('click',()=>{ Reminders.enable().then(()=>render()); });
   if($('rem-later'))   $('rem-later').addEventListener('click',()=>{ Reminders.dismissCard(); render(); });
