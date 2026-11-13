@@ -447,6 +447,11 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 #toast span{white-space:nowrap}
 #toast button{background:none;border:none;color:var(--amber);font-weight:700;font-size:14px;padding:4px 2px}
 .exp-meta{font-size:11px;color:var(--t2);margin-top:1px}
+.cc-row{display:flex;gap:6px;overflow-x:auto;margin:0 0 6px;padding:1px 0;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.cc-row::-webkit-scrollbar{display:none}
+.cc-chip{flex:0 0 auto;height:30px;padding:0 12px;border-radius:15px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--t2);font-family:var(--font);font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.cc-chip[aria-pressed=true]{background:rgba(255,176,102,.2);border:1.5px solid var(--amber);color:var(--text)}
+.cc-tag{color:var(--amber);font-weight:600}
 
 /* ── BILL CARDS ── */
 .bill-card{
@@ -877,7 +882,7 @@ const S={
   tab:'home',data:null,bills:[],archives:[],goals:[],
   plan:null,onboarding:null,cards:[],cardStatements:[],
   dailyLimit:0,showDailyLimitEdit:false,
-  amtStr:'0',selCat:'Food',addNote:'',addDate:'',justAdded:false,
+  amtStr:'0',selCat:'Food',addNote:'',addDate:'',addCard:null,justAdded:false,
   importRows:[],_importSkipped:0,
   showBillForm:false,editBillId:null,
   billForm:{name:'',category:'Housing',amount:'',dueDay:1},
@@ -990,13 +995,23 @@ function planGoal(goal){
 }
 
 // ── HTML COMPONENTS ──
+// ── Credit card helpers (the chip row only exists once the user has a card) ──
+function cardList(extraId){ return (S.cards||[]).filter(c=>!c.archived||c.id===extraId); }
+function cardName(id){ const c=(S.cards||[]).find(x=>x.id===id); return c?c.name:'Card'; }
+function cardChips(selected,cls,extraId){
+  const list=cardList(extraId); if(!list.length) return '';
+  return `<div class="cc-row" role="group" aria-label="Paid with">
+    <button type="button" class="cc-chip ${cls}" data-card="" aria-pressed="${selected==null}">Cash / debit</button>
+    ${list.map(c=>`<button type="button" class="cc-chip ${cls}" data-card="${esc(c.id)}" aria-pressed="${selected===c.id}"><i class="ti ti-credit-card" style="font-size:14px"></i>${esc(c.name)}</button>`).join('')}
+  </div>`;
+}
 function expRow(e,canDel){
   const c=catOf(e.category);
   const row=`<div class="exp-row">
     <div class="cat-icon" style="background:${c.bg}"><i class="ti ${c.icon}" style="color:${c.color}"></i></div>
     <div style="flex:1;min-width:0">
       <div class="exp-desc">${esc(e.description)}</div>
-      <div class="exp-meta">${e.date.slice(5)} &middot; ${esc(e.category)}</div>
+      <div class="exp-meta">${e.date.slice(5)} &middot; ${esc(e.category)}${e.card?` &middot; <span class="cc-tag"><i class="ti ti-credit-card" style="font-size:11px"></i> ${esc(cardName(e.card))}</span>`:''}</div>
     </div>
     <span style="font-size:14px;font-weight:600;font-family:var(--mono);color:var(--red);flex-shrink:0">${fmtAbs(e.amount)}</span>
     ${canDel?`<button class="btn-icon edit-exp" data-id="${e.id}" title="Edit" aria-label="Edit expense"><i class="ti ti-pencil" style="font-size:13px"></i></button><button class="btn-icon del-exp" data-id="${e.id}" title="Delete"><i class="ti ti-trash" style="font-size:13px"></i></button>`:''}
@@ -1645,7 +1660,7 @@ const ExpSwipe=(()=>{
     closeSheet();
     const now=new Date(),pad=n=>String(n).padStart(2,'0');
     const today=todayStr(),monthStart=`${S.data.year}-${pad(S.data.month+1)}-01`;
-    let cat=ex.category;
+    let cat=ex.category,card=ex.card||null;
     const o=document.createElement('div'); o.id='es-overlay'; o.className='es-overlay';
     o.innerHTML=`<div class="es-sheet" role="dialog" aria-modal="true" aria-labelledby="es-title">
       <div class="es-handle"></div>
@@ -1658,6 +1673,7 @@ const ExpSwipe=(()=>{
       <div class="es-cats" role="group" aria-labelledby="es-cat-l">${CATS.map(c=>`<button type="button" class="es-chip" data-cat="${esc(c.name)}" aria-pressed="${c.name===cat}"><i class="ti ${c.icon}" style="color:${c.color}"></i>${esc(c.name)}</button>`).join('')}</div>
       <label for="es-date">Date</label>
       <input id="es-date" type="date" min="${monthStart}" max="${today}" value="${esc(ex.date)}">
+      ${cardList(ex.card).length?`<label>Paid with</label>${cardChips(card,'cc-edit',ex.card)}`:''}
       <div class="es-err" id="es-err" role="alert"></div>
       <div class="es-actions"><button type="button" class="btn-green" id="es-save">Save changes</button><button type="button" class="btn-ghost" id="es-cancel" style="padding:0 18px">Cancel</button></div>
     </div>`;
@@ -1668,6 +1684,9 @@ const ExpSwipe=(()=>{
     document.addEventListener('keydown',onKey);
     o.querySelectorAll('.es-chip').forEach(b=>b.addEventListener('click',()=>{
       cat=b.dataset.cat; o.querySelectorAll('.es-chip').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); haptic.tap();
+    }));
+    o.querySelectorAll('.cc-edit').forEach(b=>b.addEventListener('click',()=>{
+      card=b.dataset.card||null; o.querySelectorAll('.cc-edit').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); haptic.tap();
     }));
     $e('#es-note').addEventListener('keydown',e=>{ if(e.key.length===1&&!/[\p{L}\p{N} .,\-'()&#]/u.test(e.key)) e.preventDefault(); });
     $e('#es-note').addEventListener('input',e=>{ const c=sanitizeText(e.target.value,LIMITS.TEXT_NOTE); if(c!==e.target.value) e.target.value=c; });
@@ -1681,6 +1700,7 @@ const ExpSwipe=(()=>{
       const live=S.data.expenses.find(x=>x.id===id);
       if(!live){ closeSheet(); return; }
       Object.assign(live,{amount:amt,description:note||cat,category:cat,date});
+      if(card) live.card=card; else delete live.card;
       haptic.ok(); saveData(); render(); closeSheet();
     });
   }
@@ -2108,7 +2128,8 @@ function renderAdd(){
   </div>
   ${_isPast?`<div style="text-align:center;font-size:11px;color:var(--amber);font-weight:600;margin:-2px 0 6px">
     <i class="ti ti-calendar-event" style="font-size:11px"></i> Adding to ${_dateVal.slice(5)}
-  </div>`:''}`;
+  </div>`:''}
+  ${cardChips((S.cards||[]).some(c=>c.id===S.addCard&&!c.archived)?S.addCard:null,'cc-pick')}`;
   const addBtn=`<button id="do-add" class="${has?'fizz-btn':''}" ${has?'':'disabled'}
     style="width:100%;padding:15px;font-size:16px;font-weight:700;border-radius:999px;
     cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:9px;
@@ -2588,6 +2609,7 @@ function bind(){
 
   // Category pick
   on('.cat-pick','click',e=>{S.selCat=e.currentTarget.dataset.cat;render()});
+  on('.cc-pick','click',e=>{ S.addCard=e.currentTarget.dataset.card||null; haptic.tap(); render(); });
 
   // Note field — sanitize text, strip control chars
   const note=$('add-note');
@@ -2624,9 +2646,10 @@ function bind(){
       id:Date.now(),date:expenseDate,
       category:S.selCat,
       description:S.addNote.trim()||S.selCat,
-      amount:amt
+      amount:amt,
+      ...((S.cards||[]).some(c=>c.id===S.addCard&&!c.archived)?{card:S.addCard}:{})
     });
-    S.amtStr='0';S.addNote='';S.addDate='';S.justAdded=true;
+    S.amtStr='0';S.addNote='';S.addDate='';S.addCard=null;S.justAdded=true;
     haptic.ok();
     saveData();render();
     setTimeout(()=>{S.justAdded=false;S.tab='home';render()},1000);
