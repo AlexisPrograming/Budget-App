@@ -59,7 +59,8 @@ const SmartPlan = (() => {
   }
 
   // Saves the plan and connects it to the existing systems. Returns { ok, errors? , plan?, incomeNote? }.
-  async function apply(input) {
+  // opts.incomeMode: 'match' (default) updates the logged income to the plan's; 'keep' leaves it untouched.
+  async function apply(input, opts) {
     const v = C.validateInput(input);
     if (!v.ok) return { ok: false, errors: v.errors };
     if (!S.data) return { ok: false, errors: { general: 'Your data has not loaded yet. Try again in a moment.' } };
@@ -67,21 +68,12 @@ const SmartPlan = (() => {
     const { monthly, fixed, plan: built } = compute(input);
     if (built.status === 'overcommitted') return { ok: false, errors: { savingsPercent: 'Fixed expenses plus savings are more than your income. Lower the savings percent.' } };
 
-    // Income: reuse what is already logged. Never delete or reduce the user's own entries; only top up the
-    // difference with one marked entry (kept by the month-close carry-over because it copies every field).
+    // Income: bring the logged income in line with the plan (or leave it, if the user chose to keep it).
     const first = `${S.data.year}-${pad(S.data.month + 1)}-01`;
-    const entries = S.data.income;
-    const logged = C.sumAmounts(entries.filter(e => !e.planManaged));
-    const managedIdx = entries.findIndex(e => e.planManaged);
-    const diff = C.round2(monthly - logged);
-    let incomeNote = null;
-    if (diff > 0.004) {
-      if (managedIdx >= 0) entries[managedIdx].amount = diff;
-      else entries.push({ id: Date.now(), date: first, source: 'Salary (plan)', amount: diff, planManaged: true });
-    } else {
-      if (managedIdx >= 0) entries.splice(managedIdx, 1);
-      if (diff < -0.004) incomeNote = 'logged_income_higher';
-    }
+    const rec = C.reconcileIncome(S.data.income, monthly, (opts && opts.incomeMode) || 'match', { id: Date.now(), first });
+    const incomeBefore = C.sumAmounts(S.data.income);
+    S.data.income = rec.entries;
+    const incomeNote = rec.note;
     await saveData();
 
     // Daily limit: one number for the whole app. Only written when there is money to spend.
@@ -111,7 +103,7 @@ const SmartPlan = (() => {
     await Store.cset(KEY_PLAN, JSON.stringify(plan));
     S.onboarding = { ...(S.onboarding || defaults()), completed: true, completed_at: (S.onboarding && S.onboarding.completed_at) || now, skipped_at: null, step: 0, draft: null };
     await saveOnboarding();
-    return { ok: true, plan, incomeNote };
+    return { ok: true, plan, incomeNote, income: { before: incomeBefore, after: C.sumAmounts(S.data.income) } };
   }
 
   // ───────── Phase 2: where the user lands, skipping, resuming and editing ─────────
@@ -160,7 +152,7 @@ const SmartPlan = (() => {
   // ───────── Phase 3: the guided steps ─────────
   // One screen per step, progress saved after every change (so closing the app resumes where you were).
   // Money inputs keep their text in state and never re-render while typing, so nothing is lost.
-  const ob = { active: false, step: 0, input: {}, errors: {}, bill: null, saving: false, saved: false, formError: '', method: 'rec', focus: false };
+  const ob = { incomeMode: 'match', active: false, step: 0, input: {}, errors: {}, bill: null, saving: false, saved: false, formError: '', method: 'rec', focus: false };
   const STEPS = 5;
   const FREQ = [
     ['weekly', 'Every week', 'Paid weekly'],
@@ -240,7 +232,7 @@ const SmartPlan = (() => {
     const pre = prefill(), d = state() !== 'done' && S.onboarding && S.onboarding.draft && S.onboarding.draft.input;
     const inp = { ...pre.input, ...(d || {}) };
     for (const k of ['payAmount', 'taxPercent', 'irregularMonthly', 'savingsPercent']) inp[k] = inp[k] === '' || inp[k] == null ? '' : String(inp[k]);
-    ob.input = inp; ob.errors = {}; ob.bill = null; ob.saving = false; ob.saved = false; ob.formError = '';
+    ob.input = inp; ob.errors = {}; ob.bill = null; ob.saving = false; ob.saved = false; ob.formError = ''; ob.incomeMode = 'match';
     const saved = S.onboarding && !S.onboarding.completed ? (S.onboarding.step | 0) : 0;
     ob.step = state() === 'done' ? 1 : Math.min(STEPS, saved);   // editing never shows the welcome again
     const sug = C.suggestSavingsPercent(pre.monthlyIncome || C.monthlyFromPay(C.netPay(num(inp.payAmount), inp.basis, inp.taxPercent), inp.frequency, inp.irregularMonthly), pre.fixedTotal);
@@ -396,6 +388,22 @@ const SmartPlan = (() => {
     let off = 0;
     return `<svg width="132" height="132" viewBox="0 0 132 132" role="img" aria-label="How your income is split" style="flex-shrink:0;transform:rotate(-90deg)"><circle cx="66" cy="66" r="${R}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="16"/>${parts.map(([v, c]) => { const len = v / tot * L, el = `<circle cx="66" cy="66" r="${R}" fill="none" stroke="${c}" stroke-width="16" stroke-dasharray="${len} ${L - len}" stroke-dashoffset="${-off}"/>`; off += len; return el; }).join('')}</svg>`;
   }
+  // Shown on the summary when the income already logged this month differs from the plan's.
+  function incomeChoice() {
+    const mine = ((S.data && S.data.income) || []).filter(e => !e.planManaged), logged = C.sumAmounts(mine), monthly = live().monthly;
+    if (!mine.length || !(monthly > 0) || Math.abs(monthly - logged) < 0.01) return null;
+    return { logged, monthly, canChange: mine.length === 1 || monthly > logged };
+  }
+  function incomeCard() {
+    const c = incomeChoice(); if (!c) return '';
+    if (!c.canChange) return `<div class="ob-note" id="ob-income">You have several income entries this month, ${fmtAbs(c.logged)} in total, more than the ${fmtAbs(c.monthly)} your plan comes to. They stay as they are; your daily budget uses ${fmtAbs(c.monthly)}.</div>`;
+    const m = ob.incomeMode === 'match';
+    return `<div class="card" id="ob-income" style="margin-top:12px"><div style="font-weight:600">Update your income?</div>
+      <div class="ob-sub" style="margin:6px 0 12px;font-size:13px">This month you have ${fmtAbs(c.logged)} logged as income. Your plan, based on your pay, comes to ${fmtAbs(c.monthly)} a month.</div>
+      <div role="radiogroup" aria-label="Income to use">
+        <button type="button" class="ob-opt" role="radio" aria-checked="${m}" data-income="match"><b>Update it to ${fmtAbs(c.monthly)}</b><small>Your totals and your plan use the same number</small></button>
+        <button type="button" class="ob-opt" role="radio" aria-checked="${!m}" data-income="keep"><b>Keep ${fmtAbs(c.logged)}</b><small>Your daily budget still uses ${fmtAbs(c.monthly)}</small></button></div></div>`;
+  }
   function stepSummary() {
     const p = live().plan, share = v => (p.monthlyIncome > 0 ? pct1(v / p.monthlyIncome * 100) : '0%');
     return `${head('Your plan')}
@@ -406,6 +414,7 @@ const SmartPlan = (() => {
         <div><i style="background:#6fe0b0"></i>Savings<span>${fmtAbs(p.savingsMonthly)}</span></div>
         <div><i style="background:#ffb066"></i>Spending money<span>${fmtAbs(Math.max(0, p.flexibleMonthly))}</span></div></div></div>
         <div style="font-size:12px;color:var(--t2)">Monthly income ${fmtAbs(p.monthlyIncome)} · fixed ${share(p.fixedTotal)} · savings ${share(p.savingsMonthly)}</div></div>
+      ${incomeCard()}
       <div class="ob-err" role="alert">${esc(ob.formError)}</div>
       <div class="ob-nav"><button type="button" class="btn-green" id="ob-save" ${ob.saving || p.status === 'overcommitted' ? 'disabled' : ''}>${ob.saving ? 'Saving…' : 'Save my plan'}</button></div>`;
   }
@@ -488,6 +497,8 @@ const SmartPlan = (() => {
       });
     }
 
+    document.querySelectorAll('[data-income]').forEach(b => b.addEventListener('click', () => { ob.incomeMode = b.dataset.income; render(); }));
+
     // step 4: savings
     document.querySelectorAll('[data-method]').forEach(b => b.addEventListener('click', () => { ob.method = b.dataset.method; ob.errors = {}; persist(); render(); }));
     const sl = $('ob-slider');
@@ -501,7 +512,7 @@ const SmartPlan = (() => {
     if (ob.saving) return;
     ob.saving = true; ob.formError = ''; render();
     try {
-      const r = await apply(payload());
+      const r = await apply(payload(), { incomeMode: ob.incomeMode });
       if (!r.ok) { ob.saving = false; ob.formError = Object.values(r.errors)[0] || 'Could not save your plan.'; render(); return; }
       ob.saving = false; ob.saved = true; haptic.ok(); render();
       setTimeout(() => { ob.saved = false; ob.active = false; S.tab = 'home'; S.obEdit = false; render(); }, reduced() ? 600 : 1700);

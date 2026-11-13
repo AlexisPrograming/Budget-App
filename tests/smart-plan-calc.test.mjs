@@ -193,3 +193,47 @@ test('validateInput checks the tax percent only for gross pay', () => {
   assert.equal(C.validateInput({ ...base, basis: 'gross', taxPercent: '' }).ok, true);
   assert.equal(C.validateInput({ ...base, basis: 'net', taxPercent: 999 }).ok, true);
 });
+
+test('reconcileIncome: the user\'s single entry becomes the plan income (the 3500 vs 3328 case)', () => {
+  const entries = [{ id: 1, date: '2026-11-01', source: 'Payment', amount: 3500 }];
+  const r = plain(C.reconcileIncome(entries, 3328, 'match', { id: 9, first: '2026-11-01' }));
+  assert.equal(r.entries.length, 1);
+  assert.equal(r.entries[0].amount, 3328);
+  assert.equal(r.entries[0].source, 'Payment');      // keeps the user's own label and id
+  assert.equal(r.entries[0].id, 1);
+  assert.equal(r.changed, true);
+  assert.equal(entries[0].amount, 3500);              // the input is never mutated
+});
+
+test('reconcileIncome: keep mode and empty target change nothing', () => {
+  const entries = [{ id: 1, amount: 3500, source: 'Payment', date: 'd' }];
+  assert.equal(C.reconcileIncome(entries, 3328, 'keep', { id: 9, first: 'd' }).changed, false);
+  assert.equal(C.reconcileIncome(entries, 0, 'match', { id: 9, first: 'd' }).changed, false);
+  assert.equal(C.reconcileIncome(entries, NaN, 'match', { id: 9, first: 'd' }).changed, false);
+  assert.equal(C.reconcileIncome(entries, 3500, 'match', { id: 9, first: 'd' }).changed, false);   // already equal
+});
+
+test('reconcileIncome: no entries creates one marked entry; a marked-only list is updated in place', () => {
+  const ctx = { id: 77, first: '2026-11-01' };
+  const a = plain(C.reconcileIncome([], 2600, 'match', ctx));
+  assert.deepEqual(a.entries, [{ id: 77, date: '2026-11-01', source: 'Salary (plan)', amount: 2600, planManaged: true }]);
+  const b = plain(C.reconcileIncome(a.entries, 2800, 'match', ctx));
+  assert.equal(b.entries.length, 1);
+  assert.equal(b.entries[0].amount, 2800);
+  assert.equal(b.entries[0].id, 77);
+});
+
+test('reconcileIncome: several entries are topped up but never lowered or deleted', () => {
+  const ctx = { id: 5, first: '2026-11-01' };
+  const two = [{ id: 1, amount: 2000, source: 'Salary', date: 'd' }, { id: 2, amount: 500, source: 'Freelance', date: 'd' }];
+  const up = plain(C.reconcileIncome(two, 3000, 'match', ctx));
+  assert.deepEqual(up.entries.map(e => e.amount), [2000, 500, 500]);
+  assert.equal(up.entries[2].planManaged, true);
+  const up2 = plain(C.reconcileIncome(up.entries, 3300, 'match', ctx));   // top-up adjusts, no duplicate
+  assert.deepEqual(up2.entries.map(e => e.amount), [2000, 500, 800]);
+  const down = plain(C.reconcileIncome(two, 2000, 'match', ctx));
+  assert.equal(down.entries.length, 2);
+  assert.equal(down.note, 'logged_income_higher');
+  const downWithMarked = plain(C.reconcileIncome(up.entries, 2000, 'match', ctx));
+  assert.deepEqual(downWithMarked.entries.map(e => e.amount), [2000, 500]);    // the top-up goes away, user entries stay
+});

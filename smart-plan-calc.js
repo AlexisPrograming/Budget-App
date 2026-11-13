@@ -143,6 +143,31 @@
     return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
   }
 
+  // Brings the logged income entries in line with the plan's monthly income. Pure: returns new entries.
+  // mode 'keep' touches nothing. mode 'match':
+  //   - no entries of the user: one marked entry with the plan's income
+  //   - exactly one entry of the user: that entry becomes the plan's income
+  //   - several entries: only ever raised through one marked top-up; never lowered automatically
+  function reconcileIncome(entries, target, mode, ctx) {
+    const list = (entries || []).map(e => ({ ...e }));
+    const t = round2(target);
+    if (mode === 'keep' || !(t > 0)) return { entries: list, note: null, changed: false };
+    const mine = list.filter(e => !e.planManaged), marked = list.find(e => e.planManaged);
+    const fresh = amount => ({ id: ctx.id, date: ctx.first, source: 'Salary (plan)', amount, planManaged: true });
+    let out, note = null;
+    if (mine.length === 0) {
+      out = [marked ? { ...marked, amount: t } : fresh(t)];
+    } else if (mine.length === 1) {
+      out = [{ ...mine[0], amount: t }];
+    } else {
+      const diff = round2(t - sumAmounts(mine));
+      out = mine;
+      if (diff > 0.004) out = [...mine, marked ? { ...marked, amount: diff } : fresh(diff)];
+      else if (diff < -0.004) note = 'logged_income_higher';
+    }
+    return { entries: out, note, changed: JSON.stringify(out) !== JSON.stringify(list) };
+  }
+
   // Sum of expense amounts with from <= date <= to (inclusive, YYYY-MM-DD strings).
   function sumBetween(expenses, from, to) {
     return round2((expenses || []).reduce((s, e) => (e.date >= from && e.date <= to ? s + (Number(e.amount) || 0) : s), 0));
@@ -151,6 +176,6 @@
   return {
     FREQUENCIES, AMT_MAX, round2, sumAmounts, netPay, monthlyFromPay, splitFiftyThirtyTwenty,
     suggestSavingsPercent, maxSavingsPercent, daysInMonthOf, buildPlan, validateInput,
-    spendStatus, startOfWeek, sumBetween,
+    spendStatus, startOfWeek, sumBetween, reconcileIncome,
   };
 });
