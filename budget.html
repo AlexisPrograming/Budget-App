@@ -15,6 +15,8 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.50.0/dist/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
+<script src="/smart-plan-calc.js"></script>
+<script src="/onboarding.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=DM+Sans:wght@400;500;600&display=swap">
 <style>
@@ -252,8 +254,10 @@ button,a,[data-tab],.nk,.cat-btn,.nav-item,.imp-chk,label,[onclick]{touch-action
   radial-gradient(circle at 84% 78%,rgba(255,255,255,.14) 0 2.2px,rgba(255,255,255,.6) 2.6px 3.2px,transparent 3.6px)}
 .btn-green:active::before,.btn-green:active::after,.fizz-btn:active::before,.fizz-btn:active::after{animation-duration:1.3s}
 @media(prefers-reduced-motion:reduce){
-  .prog-track-fill::before,.prog-track-fill::after,.btn-green::before,.btn-green::after,
-  .fizz-btn::before,.fizz-btn::after,.fab::before,.fab::after{display:none}
+  html:not(.fx-full) .prog-track-fill::before,html:not(.fx-full) .prog-track-fill::after,
+  html:not(.fx-full) .btn-green::before,html:not(.fx-full) .btn-green::after,
+  html:not(.fx-full) .fizz-btn::before,html:not(.fx-full) .fizz-btn::after,
+  html:not(.fx-full) .fab::before,html:not(.fx-full) .fab::after{display:none}
 }
 .orb-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none}
 .orb-pills{display:flex;gap:10px;margin:16px 0 12px}
@@ -869,6 +873,7 @@ const Store={
 // ── APP STATE ──
 const S={
   tab:'home',data:null,bills:[],archives:[],goals:[],
+  plan:null,onboarding:null,
   dailyLimit:0,showDailyLimitEdit:false,
   amtStr:'0',selCat:'Food',addNote:'',addDate:'',justAdded:false,
   importRows:[],_importSkipped:0,
@@ -891,6 +896,7 @@ async function load(){
   try{const r=await Store.cget('budget:archives_idx');S.archives=r?JSON.parse(r.value):[]}catch{S.archives=[]}
   try{const r=await Store.cget('budget:goals');      S.goals=r?JSON.parse(r.value):[]}catch{S.goals=[]}
   try{const r=await Store.cget('budget:daily_limit');S.dailyLimit=r?parseFloat(r.value)||0:0}catch{S.dailyLimit=0}
+  try{ if(typeof SmartPlan!=='undefined') await SmartPlan.load(); }catch{ S.plan=null; S.onboarding=null; }
 }
 
 // ── CALCULATIONS ──
@@ -1385,18 +1391,24 @@ function renderDailyLimitCard(c){
 const Orb=(()=>{
   const N=44,TAU=Math.PI*2,SIGN=-1,STEP=340/(N-1),MAXB=12;
   const reduce=window.matchMedia?matchMedia('(prefers-reduced-motion: reduce)'):null;
-  const rm=()=>!!(reduce&&reduce.matches);
+  // The liquid's waves, bubbles and fizz are ON by default, even when iOS Reduce Motion is on.
+  // Only an explicit "calm" choice in the profile menu turns them off (and it is remembered).
+  let fxFull=true; try{ fxFull=localStorage.getItem('budget:fx')!=='calm'; }catch{}
+  document.documentElement.classList.toggle('fx-full',fxFull);
+  const rm=()=>!!(reduce&&reduce.matches)&&!fxFull;
   const st={level:0,vel:0,target:0,over:false,init:false,pending:0,
-    tilt:0,lag:0,lagV:0,t:0,h:new Float32Array(N),v:new Float32Array(N),bubbles:[]};
+    tilt:0,lag:0,lagV:0,m2:0,m2V:0,t:0,h:new Float32Array(N),v:new Float32Array(N),bubbles:[]};
   const ld=new Float32Array(N),rd=new Float32Array(N);
   let cvs=null,ctx=null,k=1,raf=0,last=0,sensor=null,starting=false,touching=false,energy=0;
   const X=i=>-20+i*STEP;
   const clamp=(v,a,b)=>v<a?a:v>b?b:v;
   const amb=(x,t)=>rm()?0:1.5*Math.sin(x*0.045+t*0.8)+1.0*Math.sin(x*0.08-t*1.1);
   const slope=()=>-clamp(st.lag,-1,1)*0.62;
+  // Surface shape: tilted plane + an S-curve while it sloshes + the liquid climbing the glass at the edges.
+  const shape=x=>(x-150)*slope()+st.m2*Math.sin(((x-150)/150)*Math.PI)-5*Math.pow(Math.min(1,Math.abs(x-150)/150),6);
   const surf=(x,y0)=>{
     const f=clamp((x+20)/STEP,0,N-1),i=f|0,j=Math.min(N-1,i+1),u=f-i;
-    return y0+(x-150)*slope()+st.h[i]*(1-u)+st.h[j]*u+amb(x,st.t);
+    return y0+shape(x)+st.h[i]*(1-u)+st.h[j]*u+amb(x,st.t);
   };
 
   function splash(str,x){
@@ -1411,12 +1423,16 @@ const Orb=(()=>{
       st.vel+=(st.target-st.level)*0.005-st.vel*0.1; st.level+=st.vel;
       if(Math.abs(st.vel)<1e-5&&Math.abs(st.target-st.level)<1e-4){st.vel=0;st.level=st.target;}
       const prev=st.lagV;
-      st.lagV+=(st.tilt-st.lag)*0.006-st.lagV*0.11; st.lag+=st.lagV;
+      st.lagV+=(st.tilt-st.lag)*0.010-st.lagV*0.06; st.lag+=st.lagV;
+      const acc=st.lagV-prev;
       if(Math.abs(st.lagV)<1e-5&&Math.abs(st.tilt-st.lag)<1e-4){st.lagV=0;st.lag=st.tilt;}
-      const kick=(st.lagV-prev)*0.35;
+      // second sloshing mode: the surface bends into an S while the tilt is changing
+      st.m2V+=-st.m2*0.035-st.m2V*0.055-acc*110; st.m2=clamp(st.m2+st.m2V,-12,12);
+      if(Math.abs(st.m2V)<1e-4&&Math.abs(st.m2)<1e-3){st.m2V=0;st.m2=0;}
+      const kick=acc*0.9;
       for(let i=0;i<N;i++){
         st.v[i]+=kick*(X(i)-150);
-        st.v[i]+=-0.012*st.h[i]-0.09*st.v[i];
+        st.v[i]+=-0.02*st.h[i]-0.05*st.v[i];
         st.h[i]=clamp(st.h[i]+st.v[i],-18,18);
         if(Math.abs(st.v[i])<1e-4)st.v[i]=0;
       }
@@ -1451,10 +1467,10 @@ const Orb=(()=>{
   function wave(y0,back){
     const off=back?9:0,hs=back?0.55:1,tt=st.t+(back?1.7:0);
     ctx.beginPath();
-    let px=X(0),py=y0+(px-150)*slope()+st.h[0]*hs+amb(px,tt)+off;
+    let px=X(0),py=y0+shape(px)+st.h[0]*hs+amb(px,tt)+off;
     ctx.moveTo(px,py);
     for(let i=1;i<N;i++){
-      const x=X(i),y=y0+(x-150)*slope()+st.h[i]*hs+amb(x,tt)+off;
+      const x=X(i),y=y0+shape(x)+st.h[i]*hs+amb(x,tt)+off;
       ctx.quadraticCurveTo(px,py,(px+x)/2,(py+y)/2);
       px=x;py=y;
     }
@@ -1476,7 +1492,7 @@ const Orb=(()=>{
     wave(y0,false);ctx.fillStyle=g;ctx.fill();
     // meniscus highlight
     ctx.beginPath();
-    for(let i=0;i<N;i++){const x=X(i),y=y0+(x-150)*slope()+st.h[i]+amb(x,st.t);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+    for(let i=0;i<N;i++){const x=X(i),y=y0+shape(x)+st.h[i]+amb(x,st.t);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
     ctx.strokeStyle='rgba(255,255,255,.4)';ctx.lineWidth=1.6;ctx.stroke();
     // bubbles
     for(const b of st.bubbles){
@@ -1493,7 +1509,7 @@ const Orb=(()=>{
     raf=0;
     if(!cvs||!cvs.isConnected||document.hidden){ stop(); return; }
     const dt=ts-last;
-    const moving=touching||Math.abs(st.vel)>0.0008||Math.abs(st.lagV)>0.0005||Math.abs(st.tilt-st.lag)>0.002||Math.abs(st.target-st.level)>0.002;
+    const moving=touching||Math.abs(st.vel)>0.0008||Math.abs(st.lagV)>0.0005||Math.abs(st.tilt-st.lag)>0.002||Math.abs(st.m2V)>0.004||Math.abs(st.m2)>0.05||Math.abs(st.target-st.level)>0.002;
     const active=moving||energy>(rm()?0.6:14);
     if(rm()&&!active){ draw(); return; }
     if(dt<(active?15:33)){ raf=requestAnimationFrame(loop); return; }
@@ -1581,6 +1597,9 @@ const Orb=(()=>{
     },
     pause(){ if(raf){cancelAnimationFrame(raf);raf=0;} stopSensor(); },
     askMotion,
+    setFx(v){ fxFull=v!=='calm'; try{localStorage.setItem('budget:fx',v)}catch{} document.documentElement.classList.toggle('fx-full',fxFull); if(cvs&&cvs.isConnected){ if(rm()){st.bubbles.length=0;} start(); } },
+    fxFull:()=>fxFull,
+    systemReduced:()=>!!(reduce&&reduce.matches),
     state(){ return{vel:st.vel,lagV:st.lagV,gap:st.target-st.level,energy,bubbles:st.bubbles.length}; },
   };
 })();
@@ -1832,6 +1851,7 @@ const Reminders=(()=>{
     const on=get(KEY)==='on',l=document.getElementById('menu-notif-label'),i=document.getElementById('menu-bell-icon');
     if(l) l.textContent=avail==='no'?'Reminders: unavailable':avail==='stuck'?'Reminders: no answer':on?'Reminders: on':'Reminders: off';
     const t=document.getElementById('menu-test'); if(t) t.style.display=on?'flex':'none';
+    const fx=document.getElementById('menu-fx'); if(fx){ fx.style.display=Orb.systemReduced()?'flex':'none'; const fl=document.getElementById('menu-fx-label'); if(fl) fl.textContent=Orb.fxFull()?'Liquid motion: full':'Liquid motion: calm'; }
     if(i) i.className='ti '+(on?'ti-bell-ringing':'ti-bell-off');
   }
   function cardHtml(){
@@ -1906,8 +1926,14 @@ function renderHome(){
         </button>
         <div id="profile-menu" style="display:none;position:absolute;right:0;top:40px;background:#2a1b14;border:1px solid rgba(255,255,255,0.16);border-radius:16px;padding:6px;min-width:190px;z-index:200;box-shadow:0 14px 36px rgba(0,0,0,0.6)">
           ${currentUser?`<div style="padding:8px 12px 6px;font-size:11px;color:var(--t3);border-bottom:1px solid var(--border);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(currentUser.email)}</div>`:''}
+          <button id="menu-plan" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
+            <i class="ti ti-sparkles" style="font-size:16px;color:var(--amber)"></i><span>Smart plan</span>
+          </button>
           <button id="menu-notif" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
             <i class="ti ti-bell" id="menu-bell-icon" style="font-size:16px"></i><span id="menu-notif-label">Reminders</span>
+          </button>
+ <button id="menu-fx" style="display:none;width:100%;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
+            <i class="ti ti-droplet" style="font-size:16px;color:var(--amber)"></i><span id="menu-fx-label">Liquid motion</span>
           </button>
           <button id="menu-test" style="display:none;width:100%;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
             <i class="ti ti-bell-ringing" style="font-size:16px;color:var(--amber)"></i><span>Send test reminder</span>
@@ -1925,6 +1951,7 @@ function renderHome(){
 
   ${S.showInc&&S.tab==='home'?incFormHtml(true):''}
 
+  ${S.tab==='home'&&typeof SmartPlan!=='undefined'?SmartPlan.bannerHtml():''}
   ${S.tab==='home'?Reminders.cardHtml():''}
 
   <div class="home-cols">
@@ -1950,6 +1977,8 @@ function renderHome(){
       ${renderDailyLimitCard(c)}
 
       `:homeHeroMobile(c)}
+
+      ${typeof SmartPlan!=='undefined'?SmartPlan.dashboardCard():''}
 
       <!-- Today card -->
       <div class="card">
@@ -2318,13 +2347,14 @@ function render(){
   if(!ct){ console.error('render: #content missing'); return; }
   let html;
   try{
-    html={home:renderHome,add:renderAdd,bills:renderBills,overview:renderOverview,import:renderImport}[S.tab]?.()??'';
+    html={home:renderHome,add:renderAdd,bills:renderBills,overview:renderOverview,import:renderImport,onboarding:()=>typeof SmartPlan!=='undefined'?SmartPlan.renderScreen():renderHome()}[S.tab]?.()??'';
   }catch(err){
     ct.innerHTML=`<div style="padding:2rem;color:#f07070;font-family:monospace;white-space:pre-wrap">Render error (tab=${S.tab}):\n${err}</div>`;
     console.error('render error',err);
     return;
   }
   ct.innerHTML=html;
+  document.body.classList.toggle('ob-mode',S.tab==='onboarding');
   Orb.sync();
   Reminders.init();
   Reminders.sync();
@@ -2368,6 +2398,9 @@ function render(){
     <div style="margin-top:auto;padding:0.75rem 0.5rem 0">
       <div class="sb-divider"></div>
       ${currentUser?`<div style="padding:6px 1.25rem 4px;font-size:11px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(currentUser.email)}</div>`:''}
+      <button class="sb-nav-item" id="sb-plan" title="Smart Spending Plan">
+        <i class="ti ti-sparkles"></i><span>Smart plan</span>
+      </button>
       <button class="sb-nav-item" id="sb-notif" title="Bill reminders">
         <i class="ti ti-bell" id="sb-bell-icon"></i><span id="sb-notif-label">Reminders</span>
       </button>
@@ -2386,6 +2419,7 @@ function render(){
 function bind(){
   const $=id=>document.getElementById(id);
   const on=(sel,ev,fn)=>document.querySelectorAll(sel).forEach(el=>el.addEventListener(ev,fn));
+  if(typeof SmartPlan!=='undefined') SmartPlan.bind();
 
   // Tab switching
   on('[data-tab]','click',e=>{
@@ -2774,6 +2808,7 @@ function bind(){
   }
   if($('menu-logout')) $('menu-logout').addEventListener('click',async()=>{ await _sb?.auth.signOut(); });
   if($('menu-notif'))  $('menu-notif').addEventListener('click',()=>{ if(IS_NATIVE) Reminders.toggle().then(()=>render()); else enableNotifications?.(); });
+  if($('menu-fx'))     $('menu-fx').addEventListener('click',()=>{ Orb.setFx(Orb.fxFull()?'calm':'full'); render(); });
   if($('menu-test'))   $('menu-test').addEventListener('click',()=>{ Reminders.test(); });
   if($('rem-on'))      $('rem-on').addEventListener('click',()=>{ Reminders.enable().then(()=>render()); });
   if($('rem-later'))   $('rem-later').addEventListener('click',()=>{ Reminders.dismissCard(); render(); });
@@ -3110,6 +3145,7 @@ async function launchApp(user){
       S.confirmArc=true;
     }
   }
+  try{ if(typeof SmartPlan!=='undefined') SmartPlan.maybeRedirect(); }catch{}
   try{ render(); }catch(e){
     const ct=document.getElementById('content');
     if(ct) ct.innerHTML=`<div style="padding:2rem;color:#f07070;font-family:monospace;white-space:pre-wrap">Boot error:\n${e}</div>`;
@@ -3120,7 +3156,7 @@ async function launchApp(user){
 }
 
 async function boot(){
-  if(!_sb){ await load(); render(); return; }
+  if(!_sb){ await load(); try{ if(typeof SmartPlan!=='undefined') SmartPlan.maybeRedirect(); }catch{} render(); return; }
 
   // Always show login immediately — no blank spinner risk
   renderLogin();
