@@ -435,7 +435,7 @@ const SmartPlan = (() => {
     const $ = id => document.getElementById(id);
     const on = (id, fn) => { const el = $(id); if (el) el.addEventListener('click', fn); };
     // dashboard / menu entry points from phase 2
-    on('plan-start', openEditor); on('menu-plan', openEditor); on('sb-plan', openEditor);
+    on('plan-start', openEditor); on('menu-plan', openEditor); on('sb-plan', openEditor); on('plan-edit', openEditor);
     on('plan-hide', () => { S._planBannerHidden = true; render(); });
     if (S.tab !== 'onboarding' || !ob.active) return;
 
@@ -521,5 +521,53 @@ const SmartPlan = (() => {
     }
   }
 
-  return { KEY_PLAN, KEY_OB, load, state, saveDraft, skip, prefill, compute, apply, maybeRedirect, openEditor, bannerHtml, renderScreen, bind };
+  // ───────── Phase 4: the plan card on the dashboard ─────────
+  // Reads the expenses the app already records; nothing here changes how expenses are added.
+  // Numbers follow the plan's income and savings percent but use the CURRENT fixed bills, so adding
+  // a bill later shrinks the budget automatically.
+  const tone = st => st === 'green' ? 'var(--green)' : st === 'amber' ? 'var(--amber)' : 'var(--red)';
+  const worse = (a, b) => ['green', 'amber', 'red'].indexOf(a) >= ['green', 'amber', 'red'].indexOf(b) ? a : b;
+
+  function planRow(label, left, budget, spent, status, id) {
+    const w = budget > 0 ? Math.min(100, spent / budget * 100) : (spent > 0 ? 100 : 0);
+    const text = left >= 0 ? `${fmtAbs(left)} left` : `${fmtAbs(-left)} over`;
+    return `<div class="plan-row" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+        <span style="font-size:13px;color:var(--t2)">${label}</span>
+        <span style="font-family:var(--display);font-weight:700;font-size:17px;color:${tone(status)}">${text}</span></div>
+      <div class="prog-track" style="margin:6px 0 4px" role="progressbar" aria-label="${label} spending" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(w)}"><div class="prog-track-fill" style="width:${w}%;background:${tone(status)}"></div></div>
+      <div style="font-size:11px;color:var(--t3)">${fmtAbs(spent)} spent of ${fmtAbs(budget)}</div></div>`;
+  }
+
+  function dashboardCard() {
+    if (!S.plan || state() !== 'done' || !S.data) return '';
+    const now = new Date();
+    if (S.data.year !== now.getFullYear() || S.data.month !== now.getMonth()) return '';   // a stale month would show misleading numbers
+    const days = C.daysInMonthOf(S.data.year, S.data.month), today = todayStr();
+    const p = C.buildPlan({ monthlyIncome: S.plan.monthly_net_income_calculated, fixedTotal: C.sumAmounts(S.bills), savingsPercent: S.plan.savings_goal_percent, daysInMonth: days });
+    const head = dot => `<div style="display:flex;align-items:center;gap:10px">
+      <div class="cat-icon" style="background:var(--amber-dim)"><i class="ti ti-sparkles" style="color:var(--amber)"></i></div>
+      <div style="flex:1;font-size:14px;font-weight:600">Smart Spending Plan</div>
+      ${dot ? `<span aria-hidden="true" style="width:10px;height:10px;border-radius:50%;background:${dot}"></span>` : ''}
+      <button type="button" class="btn-icon" id="plan-edit" aria-label="Edit your plan"><i class="ti ti-pencil" style="font-size:14px"></i></button></div>`;
+    if (p.status === 'overcommitted' || p.status === 'no_income') {
+      return `<div class="card" id="plan-card">${head(null)}<div class="ob-note warn" style="margin-top:12px">Your fixed expenses and savings goal no longer fit your income. Review your plan to get a daily budget again.</div></div>`;
+    }
+    const ex = S.data.expenses || [];
+    const spentDay = C.sumBetween(ex, today, today), spentWeek = C.sumBetween(ex, C.startOfWeek(today), today), spentMonth = C.sumAmounts(ex);
+    const sDay = C.spendStatus(spentDay, p.flexibleDaily), sWeek = C.spendStatus(spentWeek, p.flexibleWeekly);
+    const mp = C.monthProgress({ savingsMonthly: p.savingsMonthly, flexibleMonthly: p.flexibleMonthly, spentVar: spentMonth, dayOfMonth: now.getDate(), daysInMonth: days });
+    const savings = mp.savingsTarget > 0 ? `<div class="plan-row" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+        <span style="font-size:13px;color:var(--t2)">Savings this month</span>
+        <span style="font-family:var(--display);font-weight:700;font-size:17px;color:${tone(mp.status)}">${fmtAbs(mp.projectedSavings)} <span style="font-size:12px;font-weight:500;color:var(--t2)">of ${fmtAbs(mp.savingsTarget)}</span></span></div>
+      <div class="prog-track" style="margin:6px 0 4px" role="progressbar" aria-label="Projected savings" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(mp.ratio * 100)}"><div class="prog-track-fill" style="width:${mp.ratio * 100}%;background:${tone(mp.status)}"></div></div>
+      <div style="font-size:11px;color:var(--t3)">${mp.enoughData ? 'Projected at your current pace' : 'On track so far'}</div></div>` : '';
+    return `<div class="card" id="plan-card">${head(tone(worse(worse(sDay, sWeek), mp.status)))}
+      ${planRow('Today', C.round2(p.flexibleDaily - spentDay), p.flexibleDaily, spentDay, sDay)}
+      ${planRow('This week', C.round2(p.flexibleWeekly - spentWeek), p.flexibleWeekly, spentWeek, sWeek)}
+      ${savings}</div>`;
+  }
+
+  return { KEY_PLAN, KEY_OB, load, state, saveDraft, skip, prefill, compute, apply, maybeRedirect, openEditor, bannerHtml, dashboardCard, renderScreen, bind };
 })();

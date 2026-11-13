@@ -1978,6 +1978,8 @@ function renderHome(){
 
       `:homeHeroMobile(c)}
 
+      ${typeof SmartPlan!=='undefined'?SmartPlan.dashboardCard():''}
+
       <!-- Today card -->
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;${c.todayExps.length>0?'margin-bottom:8px':''}">

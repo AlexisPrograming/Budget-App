@@ -237,3 +237,42 @@ test('reconcileIncome: several entries are topped up but never lowered or delete
   const downWithMarked = plain(C.reconcileIncome(up.entries, 2000, 'match', ctx));
   assert.deepEqual(downWithMarked.entries.map(e => e.amount), [2000, 500]);    // the top-up goes away, user entries stay
 });
+
+test('monthProgress: on pace keeps the full savings', () => {
+  const r = C.monthProgress({ savingsMonthly: 600, flexibleMonthly: 1200, spentVar: 600, dayOfMonth: 15, daysInMonth: 30 });
+  assert.equal(r.enoughData, true);
+  assert.equal(r.projectedSpend, 1200);
+  assert.equal(r.projectedSavings, 600);
+  assert.equal(r.ratio, 1);
+  assert.equal(r.status, 'green');
+  assert.equal(r.expectedSpendByNow, 600);
+});
+
+test('monthProgress: overspending eats into savings', () => {
+  const half = C.monthProgress({ savingsMonthly: 600, flexibleMonthly: 1200, spentVar: 900, dayOfMonth: 15, daysInMonth: 30 });
+  assert.equal(half.projectedSpend, 1800);        // 900 in half the month
+  assert.equal(half.projectedSavings, 0);          // 600 over the budget wipes out the 600 saved
+  assert.equal(half.status, 'red');
+  const mid = C.monthProgress({ savingsMonthly: 600, flexibleMonthly: 1200, spentVar: 690, dayOfMonth: 15, daysInMonth: 30 });
+  assert.equal(mid.projectedSavings, 420);         // projected 1380: 180 over
+  assert.equal(mid.status, 'amber');               // 70% of the goal
+});
+
+test('monthProgress: the first days do not trigger false alarms', () => {
+  const d1 = C.monthProgress({ savingsMonthly: 600, flexibleMonthly: 1200, spentVar: 200, dayOfMonth: 1, daysInMonth: 30 });
+  assert.equal(d1.enoughData, false);
+  assert.equal(d1.projectedSavings, 600);          // 200 is well inside the 1200 budget
+  assert.equal(d1.status, 'green');
+  const d2 = C.monthProgress({ savingsMonthly: 600, flexibleMonthly: 1200, spentVar: 1500, dayOfMonth: 2, daysInMonth: 30 });
+  assert.equal(d2.projectedSavings, 300);          // already 300 over the whole month's budget
+});
+
+test('monthProgress: edge cases', () => {
+  assert.equal(C.monthProgress({ savingsMonthly: 0, flexibleMonthly: 500, spentVar: 900, dayOfMonth: 20, daysInMonth: 30 }).ratio, 1);   // no goal, nothing to lose
+  assert.equal(C.monthProgress({ savingsMonthly: 600, flexibleMonthly: 0, spentVar: 0, dayOfMonth: 20, daysInMonth: 30 }).status, 'green');
+  const bad = C.monthProgress({ savingsMonthly: 'x', flexibleMonthly: null, spentVar: -5, dayOfMonth: 0, daysInMonth: 0 });
+  assert.ok(Number.isFinite(bad.projectedSavings) && Number.isFinite(bad.projectedSpend));
+  const last = C.monthProgress({ savingsMonthly: 600, flexibleMonthly: 1200, spentVar: 1200, dayOfMonth: 99, daysInMonth: 30 });
+  assert.equal(last.elapsed, 1);                   // day is clamped to the month length
+  assert.equal(last.projectedSavings, 600);
+});

@@ -143,6 +143,26 @@
     return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
   }
 
+  // How the month is going against the plan. Savings are only at risk when spending goes above the
+  // flexible budget, so the projection follows the current pace (needs a few days of data to be fair).
+  //   spentVar: variable spending so far this month, dayOfMonth: 1..daysInMonth
+  function monthProgress(o) {
+    const days = Math.max(1, Math.floor(Number(o.daysInMonth)) || 30);
+    const day = Math.min(days, Math.max(1, Math.floor(Number(o.dayOfMonth)) || 1));
+    const savings = Math.max(0, Number(o.savingsMonthly) || 0);
+    const flexible = Math.max(0, Number(o.flexibleMonthly) || 0);
+    const spent = Math.max(0, Number(o.spentVar) || 0);
+    const elapsed = day / days;
+    const enoughData = day >= 3;                                     // day 1 or 2 would mislead the projection
+    const projectedSpend = enoughData ? round2(spent / elapsed) : round2(Math.min(spent, flexible));
+    const overspend = Math.max(0, (enoughData ? projectedSpend : spent) - flexible);
+    const projectedSavings = round2(Math.max(0, savings - overspend));
+    const ratio = savings > 0 ? Math.min(1, projectedSavings / savings) : 1;
+    const status = ratio >= 0.999 ? 'green' : ratio >= 0.5 ? 'amber' : 'red';
+    return { elapsed, enoughData, projectedSpend, projectedSavings, savingsTarget: round2(savings), ratio, status,
+      expectedSpendByNow: round2(flexible * elapsed) };
+  }
+
   // Brings the logged income entries in line with the plan's monthly income. Pure: returns new entries.
   // mode 'keep' touches nothing. mode 'match':
   //   - no entries of the user: one marked entry with the plan's income
@@ -176,6 +196,6 @@
   return {
     FREQUENCIES, AMT_MAX, round2, sumAmounts, netPay, monthlyFromPay, splitFiftyThirtyTwenty,
     suggestSavingsPercent, maxSavingsPercent, daysInMonthOf, buildPlan, validateInput,
-    spendStatus, startOfWeek, sumBetween, reconcileIncome,
+    spendStatus, startOfWeek, sumBetween, reconcileIncome, monthProgress,
   };
 });
