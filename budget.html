@@ -1780,7 +1780,7 @@ const Reminders=(()=>{
   let lastSig='',busy=false,listening=false;
 
   // Pure: the notifications that should exist right now.
-  function plan(bills,paidIds,dataYear,dataMonth,now){
+  function plan(bills,paidIds,dataYear,dataMonth,now,cardItems){
     const out=[],min=now.getTime()+60000;
     for(let off=0;off<2;off++){
       const first=new Date(now.getFullYear(),now.getMonth()+off,1);
@@ -1800,6 +1800,20 @@ const Reminders=(()=>{
         if(due.getTime()>min) out.push({at:due,title:'Bill due today',body});
       }
     }
+    // Credit card payments (unpaid statements): the day before and the day of, at the same hour.
+    for(const it of cardItems||[]){
+      const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(it.dueISO||''); if(!m) continue;
+      const y=+m[1],mo=+m[2]-1,day=+m[3];
+      const body=`${String(it.name||'Card').slice(0,40)} · ${fmtAbs(it.amount)}`;
+      let before=new Date(y,mo,day-1,HOUR,0,0);
+      const due=new Date(y,mo,day,HOUR,0,0);
+      if(before.getTime()<=min){
+        const eve=new Date(y,mo,day-1,20,0,0);
+        before=(eve.getTime()>min&&eve.toDateString()===now.toDateString())?eve:null;
+      }
+      if(before) out.push({at:before,title:'Card payment due tomorrow',body});
+      if(due.getTime()>min) out.push({at:due,title:'Card payment due today',body});
+    }
     return out.sort((a,b)=>a.at-b.at).slice(0,MAX);
   }
 
@@ -1811,7 +1825,9 @@ const Reminders=(()=>{
     const P=IS_NATIVE&&LN();
     if(!P||get(KEY)!=='on'||!S.data) return;
     listen(P);
-    const items=plan(S.bills,S.data.paidBills,S.data.year,S.data.month,new Date());
+    let cardItems=[];
+    try{ if(typeof Cards!=='undefined'){ const sm=Cards.summary(S.data.year,S.data.month); cardItems=[...sm.dueNow.items,...sm.dueLater.items]; } }catch{}
+    const items=plan(S.bills,S.data.paidBills,S.data.year,S.data.month,new Date(),cardItems);
     const sig=JSON.stringify(items.map(i=>[+i.at,i.body]));
     if(!force&&sig===lastSig) return;
     if(busy){ lastSig=''; return; }
@@ -2066,6 +2082,8 @@ function renderHome(){
       </div>`:''
       }
 
+      ${homeCardsCard()}
+
       ${S.goals.length>0?`
       <div class="card" style="margin-bottom:8px">
         <div style="font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px">
@@ -2214,6 +2232,25 @@ function renderAdd(){
 }
 
 // ── TAB: BILLS ──
+// Home: what is owed on credit cards. Shown only once there is something to show.
+function homeCardsCard(){
+  if(typeof Cards==='undefined'||!(S.cards||[]).length) return '';
+  let sm; try{ sm=Cards.summary(S.data.year,S.data.month); }catch{ return ''; }
+  if(!sm.dueNow.items.length&&!sm.building.total&&!sm.dueLater.items.length) return '';
+  return`<div class="card" id="snap-cards" style="cursor:pointer;margin-bottom:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${sm.dueNow.items.length||sm.building.total?'10':'0'}px">
+      <span style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px"><i class="ti ti-credit-card" style="font-size:14px;color:var(--t2)"></i>Credit cards</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:12px;font-weight:600;color:${sm.dueNow.total>0?'var(--amber)':'var(--green)'}">${sm.dueNow.total>0?fmtAbs(sm.dueNow.total)+' due':'Nothing due ✓'}</span>
+        <i class="ti ti-chevron-right" style="font-size:12px;color:var(--t3)"></i>
+      </div>
+    </div>
+    ${sm.dueNow.items.slice(0,4).map(i=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px solid var(--border)">
+      <span style="font-size:12px;font-weight:500">${esc(i.name)}</span>
+      <span style="font-size:12px;font-family:var(--mono);color:${i.overdue?'var(--red)':'var(--amber)'}">${fmtAbs(i.amount)} <span style="color:var(--t3);font-size:10px">${i.overdue?'overdue · ':''}${fmtDue(i.dueISO)}</span></span></div>`).join('')}
+    ${sm.building.total>0?`<div style="font-size:11px;color:var(--t2);margin-top:8px;font-weight:500">${fmtAbs(sm.building.total)} building for next month</div>`:''}
+  </div>`;
+}
 function fmtDue(iso){ const m=+iso.slice(5,7)-1,d=+iso.slice(8,10); return MONTHS[m].slice(0,3)+' '+d; }
 function cardFormHtml(){
   const f=S.cardForm;
@@ -2379,6 +2416,17 @@ function renderOverview(){
       .map(x=>`<div class="sum-item"><div class="sum-label">${x.l}</div><div class="sum-val" style="color:${x.col}">${fmtAbs(x.v)}</div></div>`).join('')}
   </div>
 
+  ${(()=>{ try{
+    if(typeof Cards==='undefined'||!(S.cards||[]).length) return '';
+    const sm=Cards.summary(S.data.year,S.data.month);
+    if(!sm.dueNow.total&&!sm.building.total&&!sm.dueLater.total) return '';
+    return`<div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-credit-card" style="font-size:14px;color:var(--t2)"></i>Credit cards</div>
+      <div class="bkd-head" style="margin-bottom:6px"><span class="bkd-name">Due this month</span><span style="font-size:13px;font-weight:600;font-family:var(--mono);color:${sm.dueNow.total>0?'var(--amber)':'var(--t2)'}">${fmtAbs(sm.dueNow.total)}</span></div>
+      <div class="bkd-head" style="margin-bottom:6px"><span class="bkd-name">Building for next month</span><span style="font-size:13px;font-weight:600;font-family:var(--mono)">${fmtAbs(sm.building.total)}</span></div>
+      ${sm.dueLater.total>0?`<div class="bkd-head" style="margin-bottom:6px"><span class="bkd-name">Later</span><span style="font-size:13px;font-weight:600;font-family:var(--mono)">${fmtAbs(sm.dueLater.total)}</span></div>`:''}
+      <div style="font-size:11px;color:var(--t2);margin-top:8px;line-height:1.5">Card purchases already count in Spending the day you make them. Paying the card does not count again.</div></div>`;
+  }catch{ return ''; } })()}
+
   ${c.byCat.length>0?`<div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:14px">Spending breakdown</div>
   ${c.byCat.map(x=>`<div class="bkd-row"><div class="bkd-head">
     <span class="bkd-name"><i class="ti ${x.icon}" style="color:${x.color}"></i>${esc(x.name)}</span>
@@ -2528,6 +2576,7 @@ function bind(){
   if($('do-arc'))       $('do-arc').addEventListener('click',arcMonth);
   if($('no-arc'))       $('no-arc').addEventListener('click',()=>{S.confirmArc=false;render()});
   if($('snap-bills'))   $('snap-bills').addEventListener('click',()=>{S.tab='bills';render()});
+  if($('snap-cards'))   $('snap-cards').addEventListener('click',()=>{S.tab='bills';render()});
   if($('log-inc-home')) $('log-inc-home').addEventListener('click',()=>{S.showInc=true;render()});
   if($('show-inc-ov'))  $('show-inc-ov').addEventListener('click',()=>{S.showInc=!S.showInc;render()});
   if($('arc-back'))     $('arc-back').addEventListener('click',()=>{S.arcView=null;render()});
