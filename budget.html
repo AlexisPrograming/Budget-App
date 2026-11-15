@@ -17,6 +17,8 @@
 <script src="/config.js"></script>
 <script src="/smart-plan-calc.js"></script>
 <script src="/onboarding.js"></script>
+<script src="/cards-calc.js"></script>
+<script src="/cards.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=DM+Sans:wght@400;500;600&display=swap">
 <style>
@@ -445,6 +447,19 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 #toast span{white-space:nowrap}
 #toast button{background:none;border:none;color:var(--amber);font-weight:700;font-size:14px;padding:4px 2px}
 .exp-meta{font-size:11px;color:var(--t2);margin-top:1px}
+.cc-row{display:flex;gap:6px;overflow-x:auto;margin:0 0 6px;padding:1px 0;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.cc-row::-webkit-scrollbar{display:none}
+.cc-chip{flex:0 0 auto;height:30px;padding:0 12px;border-radius:15px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--t2);font-family:var(--font);font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.cc-chip[aria-pressed=true]{background:rgba(255,176,102,.2);border:1.5px solid var(--amber);color:var(--text)}
+.cc-tag{color:var(--amber);font-weight:600}
+.cd-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.cd-row:last-child{border-bottom:none}
+.cd-ic{width:34px;height:34px;border-radius:10px;background:rgba(255,176,102,.14);display:flex;align-items:center;justify-content:center;color:var(--amber);flex-shrink:0}
+.cd-main{flex:1;min-width:0}.cd-name{font-size:14px;font-weight:600}.cd-sub{font-size:11px;color:var(--t2);margin-top:1px}
+.cd-amt{font-size:14px;font-weight:600;font-family:var(--mono);flex-shrink:0}
+.cd-late{color:var(--red);font-weight:700}
+.cd-pay{padding:8px 0 12px;border-bottom:1px solid var(--border)}
+.cd-err{color:var(--red);font-size:12px;min-height:16px;margin:2px 0 6px}
 
 /* ── BILL CARDS ── */
 .bill-card{
@@ -873,9 +888,10 @@ const Store={
 // ── APP STATE ──
 const S={
   tab:'home',data:null,bills:[],archives:[],goals:[],
-  plan:null,onboarding:null,
+  plan:null,onboarding:null,cards:[],cardStatements:[],
   dailyLimit:0,showDailyLimitEdit:false,
-  amtStr:'0',selCat:'Food',addNote:'',addDate:'',justAdded:false,
+  amtStr:'0',selCat:'Food',addNote:'',addDate:'',addCard:null,justAdded:false,
+  cardForm:null,payForm:null,cardMsg:'',
   importRows:[],_importSkipped:0,
   showBillForm:false,editBillId:null,
   billForm:{name:'',category:'Housing',amount:'',dueDay:1},
@@ -897,6 +913,7 @@ async function load(){
   try{const r=await Store.cget('budget:goals');      S.goals=r?JSON.parse(r.value):[]}catch{S.goals=[]}
   try{const r=await Store.cget('budget:daily_limit');S.dailyLimit=r?parseFloat(r.value)||0:0}catch{S.dailyLimit=0}
   try{ if(typeof SmartPlan!=='undefined') await SmartPlan.load(); }catch{ S.plan=null; S.onboarding=null; }
+  try{ if(typeof Cards!=='undefined') await Cards.load(); }catch{ S.cards=[]; S.cardStatements=[]; }
 }
 
 // ── CALCULATIONS ──
@@ -987,13 +1004,23 @@ function planGoal(goal){
 }
 
 // ── HTML COMPONENTS ──
+// ── Credit card helpers (the chip row only exists once the user has a card) ──
+function cardList(extraId){ return (S.cards||[]).filter(c=>!c.archived||c.id===extraId); }
+function cardName(id){ const c=(S.cards||[]).find(x=>x.id===id); return c?c.name:'Card'; }
+function cardChips(selected,cls,extraId){
+  const list=cardList(extraId); if(!list.length) return '';
+  return `<div class="cc-row" role="group" aria-label="Paid with">
+    <button type="button" class="cc-chip ${cls}" data-card="" aria-pressed="${selected==null}">Cash / debit</button>
+    ${list.map(c=>`<button type="button" class="cc-chip ${cls}" data-card="${esc(c.id)}" aria-pressed="${selected===c.id}"><i class="ti ti-credit-card" style="font-size:14px"></i>${esc(c.name)}</button>`).join('')}
+  </div>`;
+}
 function expRow(e,canDel){
   const c=catOf(e.category);
   const row=`<div class="exp-row">
     <div class="cat-icon" style="background:${c.bg}"><i class="ti ${c.icon}" style="color:${c.color}"></i></div>
     <div style="flex:1;min-width:0">
       <div class="exp-desc">${esc(e.description)}</div>
-      <div class="exp-meta">${e.date.slice(5)} &middot; ${esc(e.category)}</div>
+      <div class="exp-meta">${e.date.slice(5)} &middot; ${esc(e.category)}${e.card?` &middot; <span class="cc-tag"><i class="ti ti-credit-card" style="font-size:11px"></i> ${esc(cardName(e.card))}</span>`:''}</div>
     </div>
     <span style="font-size:14px;font-weight:600;font-family:var(--mono);color:var(--red);flex-shrink:0">${fmtAbs(e.amount)}</span>
     ${canDel?`<button class="btn-icon edit-exp" data-id="${e.id}" title="Edit" aria-label="Edit expense"><i class="ti ti-pencil" style="font-size:13px"></i></button><button class="btn-icon del-exp" data-id="${e.id}" title="Delete"><i class="ti ti-trash" style="font-size:13px"></i></button>`:''}
@@ -1642,7 +1669,7 @@ const ExpSwipe=(()=>{
     closeSheet();
     const now=new Date(),pad=n=>String(n).padStart(2,'0');
     const today=todayStr(),monthStart=`${S.data.year}-${pad(S.data.month+1)}-01`;
-    let cat=ex.category;
+    let cat=ex.category,card=ex.card||null;
     const o=document.createElement('div'); o.id='es-overlay'; o.className='es-overlay';
     o.innerHTML=`<div class="es-sheet" role="dialog" aria-modal="true" aria-labelledby="es-title">
       <div class="es-handle"></div>
@@ -1655,6 +1682,7 @@ const ExpSwipe=(()=>{
       <div class="es-cats" role="group" aria-labelledby="es-cat-l">${CATS.map(c=>`<button type="button" class="es-chip" data-cat="${esc(c.name)}" aria-pressed="${c.name===cat}"><i class="ti ${c.icon}" style="color:${c.color}"></i>${esc(c.name)}</button>`).join('')}</div>
       <label for="es-date">Date</label>
       <input id="es-date" type="date" min="${monthStart}" max="${today}" value="${esc(ex.date)}">
+      ${cardList(ex.card).length?`<label>Paid with</label>${cardChips(card,'cc-edit',ex.card)}`:''}
       <div class="es-err" id="es-err" role="alert"></div>
       <div class="es-actions"><button type="button" class="btn-green" id="es-save">Save changes</button><button type="button" class="btn-ghost" id="es-cancel" style="padding:0 18px">Cancel</button></div>
     </div>`;
@@ -1665,6 +1693,9 @@ const ExpSwipe=(()=>{
     document.addEventListener('keydown',onKey);
     o.querySelectorAll('.es-chip').forEach(b=>b.addEventListener('click',()=>{
       cat=b.dataset.cat; o.querySelectorAll('.es-chip').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); haptic.tap();
+    }));
+    o.querySelectorAll('.cc-edit').forEach(b=>b.addEventListener('click',()=>{
+      card=b.dataset.card||null; o.querySelectorAll('.cc-edit').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); haptic.tap();
     }));
     $e('#es-note').addEventListener('keydown',e=>{ if(e.key.length===1&&!/[\p{L}\p{N} .,\-'()&#]/u.test(e.key)) e.preventDefault(); });
     $e('#es-note').addEventListener('input',e=>{ const c=sanitizeText(e.target.value,LIMITS.TEXT_NOTE); if(c!==e.target.value) e.target.value=c; });
@@ -1678,6 +1709,7 @@ const ExpSwipe=(()=>{
       const live=S.data.expenses.find(x=>x.id===id);
       if(!live){ closeSheet(); return; }
       Object.assign(live,{amount:amt,description:note||cat,category:cat,date});
+      if(card) live.card=card; else delete live.card;
       haptic.ok(); saveData(); render(); closeSheet();
     });
   }
@@ -1748,7 +1780,7 @@ const Reminders=(()=>{
   let lastSig='',busy=false,listening=false;
 
   // Pure: the notifications that should exist right now.
-  function plan(bills,paidIds,dataYear,dataMonth,now){
+  function plan(bills,paidIds,dataYear,dataMonth,now,cardItems){
     const out=[],min=now.getTime()+60000;
     for(let off=0;off<2;off++){
       const first=new Date(now.getFullYear(),now.getMonth()+off,1);
@@ -1768,6 +1800,20 @@ const Reminders=(()=>{
         if(due.getTime()>min) out.push({at:due,title:'Bill due today',body});
       }
     }
+    // Credit card payments (unpaid statements): the day before and the day of, at the same hour.
+    for(const it of cardItems||[]){
+      const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(it.dueISO||''); if(!m) continue;
+      const y=+m[1],mo=+m[2]-1,day=+m[3];
+      const body=`${String(it.name||'Card').slice(0,40)} · ${fmtAbs(it.amount)}`;
+      let before=new Date(y,mo,day-1,HOUR,0,0);
+      const due=new Date(y,mo,day,HOUR,0,0);
+      if(before.getTime()<=min){
+        const eve=new Date(y,mo,day-1,20,0,0);
+        before=(eve.getTime()>min&&eve.toDateString()===now.toDateString())?eve:null;
+      }
+      if(before) out.push({at:before,title:'Card payment due tomorrow',body});
+      if(due.getTime()>min) out.push({at:due,title:'Card payment due today',body});
+    }
     return out.sort((a,b)=>a.at-b.at).slice(0,MAX);
   }
 
@@ -1779,7 +1825,9 @@ const Reminders=(()=>{
     const P=IS_NATIVE&&LN();
     if(!P||get(KEY)!=='on'||!S.data) return;
     listen(P);
-    const items=plan(S.bills,S.data.paidBills,S.data.year,S.data.month,new Date());
+    let cardItems=[];
+    try{ if(typeof Cards!=='undefined'){ const sm=Cards.summary(S.data.year,S.data.month); cardItems=[...sm.dueNow.items,...sm.dueLater.items]; } }catch{}
+    const items=plan(S.bills,S.data.paidBills,S.data.year,S.data.month,new Date(),cardItems);
     const sig=JSON.stringify(items.map(i=>[+i.at,i.body]));
     if(!force&&sig===lastSig) return;
     if(busy){ lastSig=''; return; }
@@ -2034,6 +2082,8 @@ function renderHome(){
       </div>`:''
       }
 
+      ${homeCardsCard()}
+
       ${S.goals.length>0?`
       <div class="card" style="margin-bottom:8px">
         <div style="font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px">
@@ -2064,6 +2114,7 @@ function renderHome(){
       <div style="font-size:12px;color:var(--t2);margin-bottom:18px;line-height:1.6">
         This will archive <strong style="color:var(--text)">${MONTHS[d.month]} ${d.year}</strong> and start a fresh month.<br>
         Fixed bills carry over. Income &amp; expenses reset.
+        ${(()=>{try{const t=(typeof Cards!=='undefined')?Cards.summary(d.year,d.month).building.rows.reduce((x,r)=>x+r.amount,0):0;return t>0?`<br><span style="color:var(--amber)"><i class="ti ti-credit-card" style="font-size:12px"></i> ${fmtAbs(t)} on your cards moves to next month's card payments.</span>`:''}catch{return ''}})()}
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn" id="do-arc" style="flex:1;padding:11px;font-size:13px">Archive &amp; continue</button>
@@ -2105,7 +2156,8 @@ function renderAdd(){
   </div>
   ${_isPast?`<div style="text-align:center;font-size:11px;color:var(--amber);font-weight:600;margin:-2px 0 6px">
     <i class="ti ti-calendar-event" style="font-size:11px"></i> Adding to ${_dateVal.slice(5)}
-  </div>`:''}`;
+  </div>`:''}
+  ${cardChips((S.cards||[]).some(c=>c.id===S.addCard&&!c.archived)?S.addCard:null,'cc-pick')}`;
   const addBtn=`<button id="do-add" class="${has?'fizz-btn':''}" ${has?'':'disabled'}
     style="width:100%;padding:15px;font-size:16px;font-weight:700;border-radius:999px;
     cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:9px;
@@ -2180,6 +2232,82 @@ function renderAdd(){
 }
 
 // ── TAB: BILLS ──
+// Home: what is owed on credit cards. Shown only once there is something to show.
+function homeCardsCard(){
+  if(typeof Cards==='undefined'||!(S.cards||[]).length) return '';
+  let sm; try{ sm=Cards.summary(S.data.year,S.data.month); }catch{ return ''; }
+  if(!sm.dueNow.items.length&&!sm.building.total&&!sm.dueLater.items.length) return '';
+  return`<div class="card" id="snap-cards" style="cursor:pointer;margin-bottom:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${sm.dueNow.items.length||sm.building.total?'10':'0'}px">
+      <span style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px"><i class="ti ti-credit-card" style="font-size:14px;color:var(--t2)"></i>Credit cards</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:12px;font-weight:600;color:${sm.dueNow.total>0?'var(--amber)':'var(--green)'}">${sm.dueNow.total>0?fmtAbs(sm.dueNow.total)+' due':'Nothing due ✓'}</span>
+        <i class="ti ti-chevron-right" style="font-size:12px;color:var(--t3)"></i>
+      </div>
+    </div>
+    ${sm.dueNow.items.slice(0,4).map(i=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px solid var(--border)">
+      <span style="font-size:12px;font-weight:500">${esc(i.name)}</span>
+      <span style="font-size:12px;font-family:var(--mono);color:${i.overdue?'var(--red)':'var(--amber)'}">${fmtAbs(i.amount)} <span style="color:var(--t3);font-size:10px">${i.overdue?'overdue · ':''}${fmtDue(i.dueISO)}</span></span></div>`).join('')}
+    ${sm.building.total>0?`<div style="font-size:11px;color:var(--t2);margin-top:8px;font-weight:500">${fmtAbs(sm.building.total)} building for next month</div>`:''}
+  </div>`;
+}
+function fmtDue(iso){ const m=+iso.slice(5,7)-1,d=+iso.slice(8,10); return MONTHS[m].slice(0,3)+' '+d; }
+function cardFormHtml(){
+  const f=S.cardForm;
+  return`<div class="card" style="margin-top:8px">
+    <div style="font-size:13px;font-weight:600;margin-bottom:12px">${f.editId?'Edit card':'New credit card'}</div>
+    <div class="form-row"><label>Name</label><input id="cf-name" type="text" placeholder="Visa, Amex…" value="${esc(f.name)}" maxlength="30" autocomplete="off" spellcheck="false"></div>
+    <div class="form-row-2">
+      <div><label>Payment due day</label><select id="cf-day">${Array.from({length:31},(_,i)=>`<option value="${i+1}"${+f.dueDay===i+1?' selected':''}>Day ${i+1}</option>`).join('')}</select></div>
+      ${f.editId?'<div></div>':`<div><label>Owed now ($)</label><input id="cf-owed" type="number" placeholder="0.00 (optional)" min="0" max="${LIMITS.AMT_MAX}" step=".01" value="${esc(f.owed)}" inputmode="decimal"></div>`}
+    </div>
+    ${f.editId?'':'<div style="font-size:11px;color:var(--t2);margin:-4px 0 8px">What you owe on this card today. It will show as due this month.</div>'}
+    <div class="cd-err" id="cf-err" role="alert">${esc(f.err||'')}</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-green" id="cf-save" style="padding:12px;font-size:13px">Save card</button>
+      <button class="btn-ghost" id="cf-cancel" style="padding:12px 18px">Cancel</button>
+    </div>
+  </div>`;
+}
+function cardsSectionHtml(){
+  if(typeof Cards==='undefined') return '';
+  const act=Cards.active();
+  const sm=Cards.summary(S.data.year,S.data.month);
+  const dueTotal=sm.dueNow.total;
+  const stRow=(it,later)=>{
+    const open=S.payForm&&S.payForm.id===it.id;
+    return`<div class="cd-row"><div class="cd-ic"><i class="ti ti-credit-card"></i></div>
+      <div class="cd-main"><div class="cd-name">${esc(it.name)}${it.source==='carryover'?' <span class="pill">carried over</span>':''}</div>
+      <div class="cd-sub${it.overdue?' cd-late':''}">${it.overdue?'Overdue · ':'Due '}${fmtDue(it.dueISO)}</div></div>
+      <span class="cd-amt">${fmtAbs(it.amount)}</span>
+      ${later?'':`<button class="mark-btn card-pay-open" data-id="${esc(it.id)}">pay</button>`}</div>
+      ${open?`<div class="cd-pay"><label for="pf-amt">Amount paid ($)</label>
+        <input id="pf-amt" type="number" min="0.01" max="${it.amount}" step=".01" value="${esc(S.payForm.amount)}" inputmode="decimal">
+        <div style="font-size:11px;color:var(--t2);margin:4px 0">Paying less leaves the rest as next month's payment.</div>
+        <div class="cd-err" id="pf-err" role="alert">${esc(S.payForm.err||'')}</div>
+        <div style="display:flex;gap:8px"><button class="btn-green" id="pf-save" style="padding:10px;font-size:13px">Confirm payment</button><button class="btn-ghost" id="pf-cancel" style="padding:10px 18px">Cancel</button></div></div>`:''}`;
+  };
+  const building=sm.building.rows.map(r=>`<div class="cd-row"><div class="cd-ic"><i class="ti ti-credit-card"></i></div>
+      <div class="cd-main"><div class="cd-name">${esc(r.name)}</div><div class="cd-sub">${r.count} purchase${r.count===1?'':'s'} this month</div></div>
+      <span class="cd-amt">${fmtAbs(r.amount)}</span></div>`).join('');
+  const nextDue=act.length?'next month':'';
+  return`
+  <div class="sec-lbl" style="margin-top:14px"><span class="sec-lbl-l">Credit cards</span>${dueTotal>0?`<span style="font-size:12px;font-weight:700;color:var(--amber)">${fmtAbs(dueTotal)} due</span>`:''}</div>
+  <div class="card-sm" style="margin-bottom:10px">
+    ${sm.dueNow.items.length?`<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px">Due this month</div>${sm.dueNow.items.map(i=>stRow(i,false)).join('')}`:''}
+    ${sm.building.total>0?`<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;margin:${sm.dueNow.items.length?'10px':'0'} 0 2px">Building for ${nextDue} · ${fmtAbs(sm.building.total)}</div>${building}`:''}
+    ${sm.dueLater.items.length?`<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;margin:10px 0 2px">Later</div>${sm.dueLater.items.map(i=>stRow(i,true)).join('')}`:''}
+    ${!sm.dueNow.items.length&&!sm.building.total&&!sm.dueLater.items.length?`<div style="font-size:12px;color:var(--t2);padding:4px 0">${act.length?'Nothing owed on your cards. Pick a card when you add an expense and it builds up here.':'Add a card to track what you pay on credit.'}</div>`:''}
+  </div>
+  ${S.cardMsg?`<div class="cd-err" role="alert">${esc(S.cardMsg)}</div>`:''}
+  ${act.length?`<div class="card-sm" style="margin-bottom:10px"><div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px">My cards</div>
+    ${act.map(c=>`<div class="cd-row"><div class="cd-ic"><i class="ti ti-credit-card"></i></div>
+      <div class="cd-main"><div class="cd-name">${esc(c.name)}</div><div class="cd-sub">Due day ${c.dueDay}</div></div>
+      <button class="btn-icon card-edit" data-id="${esc(c.id)}" title="Edit card" aria-label="Edit card"><i class="ti ti-edit" style="font-size:13px"></i></button>
+      <button class="btn-icon card-del" data-id="${esc(c.id)}" title="Remove card" aria-label="Remove card"><i class="ti ti-trash" style="font-size:13px"></i></button></div>`).join('')}</div>`:''}
+  ${S.cardForm?cardFormHtml():(act.length<10?`<button id="card-add" class="btn-ghost" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;margin-bottom:6px"><i class="ti ti-plus" style="font-size:16px"></i> Add credit card</button>`:'')}`;
+}
+
 function renderBills(){
   const c=calc();
   return`
@@ -2231,6 +2359,8 @@ function renderBills(){
   <div class="sec-lbl" style="margin-top:6px"><span class="sec-lbl-l">Paid · ${c.paid_.length}</span><span style="font-size:12px;font-weight:700;color:var(--green)">${fmtAbs(c.totalPaid)}</span></div>
   ${c.paid_.map(b=>billCard(b,true)).join('')}`:''
   }
+
+  ${cardsSectionHtml()}
 
   ${S.bills.length>0&&c.totalInc>0?`
   <div style="padding:10px 0;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:12px;color:var(--t2);font-weight:600;margin-top:4px">
@@ -2285,6 +2415,17 @@ function renderOverview(){
     ${[{l:'Income',v:c.totalInc,col:'#1dc99a'},{l:'Fixed bills',v:c.totalFixed,col:'var(--red)'},{l:'Spending',v:c.totalVar,col:'var(--red)'},{l:'Balance',v:c.balance,col:c.balance>=0?'#1dc99a':'var(--red)'}]
       .map(x=>`<div class="sum-item"><div class="sum-label">${x.l}</div><div class="sum-val" style="color:${x.col}">${fmtAbs(x.v)}</div></div>`).join('')}
   </div>
+
+  ${(()=>{ try{
+    if(typeof Cards==='undefined'||!(S.cards||[]).length) return '';
+    const sm=Cards.summary(S.data.year,S.data.month);
+    if(!sm.dueNow.total&&!sm.building.total&&!sm.dueLater.total) return '';
+    return`<div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-credit-card" style="font-size:14px;color:var(--t2)"></i>Credit cards</div>
+      <div class="bkd-head" style="margin-bottom:6px"><span class="bkd-name">Due this month</span><span style="font-size:13px;font-weight:600;font-family:var(--mono);color:${sm.dueNow.total>0?'var(--amber)':'var(--t2)'}">${fmtAbs(sm.dueNow.total)}</span></div>
+      <div class="bkd-head" style="margin-bottom:6px"><span class="bkd-name">Building for next month</span><span style="font-size:13px;font-weight:600;font-family:var(--mono)">${fmtAbs(sm.building.total)}</span></div>
+      ${sm.dueLater.total>0?`<div class="bkd-head" style="margin-bottom:6px"><span class="bkd-name">Later</span><span style="font-size:13px;font-weight:600;font-family:var(--mono)">${fmtAbs(sm.dueLater.total)}</span></div>`:''}
+      <div style="font-size:11px;color:var(--t2);margin-top:8px;line-height:1.5">Card purchases already count in Spending the day you make them. Paying the card does not count again.</div></div>`;
+  }catch{ return ''; } })()}
 
   ${c.byCat.length>0?`<div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:14px">Spending breakdown</div>
   ${c.byCat.map(x=>`<div class="bkd-row"><div class="bkd-head">
@@ -2435,6 +2576,7 @@ function bind(){
   if($('do-arc'))       $('do-arc').addEventListener('click',arcMonth);
   if($('no-arc'))       $('no-arc').addEventListener('click',()=>{S.confirmArc=false;render()});
   if($('snap-bills'))   $('snap-bills').addEventListener('click',()=>{S.tab='bills';render()});
+  if($('snap-cards'))   $('snap-cards').addEventListener('click',()=>{S.tab='bills';render()});
   if($('log-inc-home')) $('log-inc-home').addEventListener('click',()=>{S.showInc=true;render()});
   if($('show-inc-ov'))  $('show-inc-ov').addEventListener('click',()=>{S.showInc=!S.showInc;render()});
   if($('arc-back'))     $('arc-back').addEventListener('click',()=>{S.arcView=null;render()});
@@ -2585,6 +2727,7 @@ function bind(){
 
   // Category pick
   on('.cat-pick','click',e=>{S.selCat=e.currentTarget.dataset.cat;render()});
+  on('.cc-pick','click',e=>{ S.addCard=e.currentTarget.dataset.card||null; haptic.tap(); render(); });
 
   // Note field — sanitize text, strip control chars
   const note=$('add-note');
@@ -2621,9 +2764,10 @@ function bind(){
       id:Date.now(),date:expenseDate,
       category:S.selCat,
       description:S.addNote.trim()||S.selCat,
-      amount:amt
+      amount:amt,
+      ...((S.cards||[]).some(c=>c.id===S.addCard&&!c.archived)?{card:S.addCard}:{})
     });
-    S.amtStr='0';S.addNote='';S.addDate='';S.justAdded=true;
+    S.amtStr='0';S.addNote='';S.addDate='';S.addCard=null;S.justAdded=true;
     haptic.ok();
     saveData();render();
     setTimeout(()=>{S.justAdded=false;S.tab='home';render()},1000);
@@ -2707,6 +2851,43 @@ function bind(){
     S.bills=S.bills.filter(x=>x.id!==id);
     S.data.paidBills=(S.data.paidBills||[]).filter(x=>x!==id);
     saveBills();saveData();render();
+  });
+
+  // Credit cards
+  const cardErrMsg={has_balance:'Pay off what you owe on this card first.',too_many:'You can have up to 10 cards.',not_found:'That card no longer exists.'};
+  on('.card-pay-open','click',e=>{
+    const id=e.currentTarget.dataset.id,st=(S.cardStatements||[]).find(x=>x.id===id); if(!st) return;
+    S.payForm=S.payForm&&S.payForm.id===id?null:{id,amount:String(st.amount),err:''}; S.cardMsg=''; render();
+  });
+  if($('pf-amt')){ $('pf-amt').addEventListener('keydown',blockNumKeys); $('pf-amt').addEventListener('input',e=>{const c=sanitizeAmt(e.target.value);S.payForm.amount=c;if(e.target.value!==c)e.target.value=c;}); }
+  if($('pf-cancel')) $('pf-cancel').addEventListener('click',()=>{S.payForm=null;render();});
+  if($('pf-save')) $('pf-save').addEventListener('click',async()=>{
+    const id=S.payForm.id,st=(S.cardStatements||[]).find(x=>x.id===id),amt=parseFloat(S.payForm.amount);
+    const r=await Cards.pay(id,amt);
+    if(!r.ok){ S.payForm.err=r.error==='exceeds_balance'?'That is more than you owe on this statement.':'Enter an amount greater than 0.'; render(); return; }
+    S.payForm=null; haptic.ok(); render();
+    ExpSwipe.toast('Card payment saved','Undo',async()=>{ await Cards.undoPay(id); render(); });
+  });
+  if($('card-add')) $('card-add').addEventListener('click',()=>{S.cardForm={editId:null,name:'',dueDay:15,owed:'',err:''};S.cardMsg='';render();});
+  on('.card-edit','click',e=>{const c=(S.cards||[]).find(x=>x.id===e.currentTarget.dataset.id); if(!c) return; S.cardForm={editId:c.id,name:c.name,dueDay:c.dueDay,owed:'',err:''};S.cardMsg='';render();});
+  if($('cf-cancel')) $('cf-cancel').addEventListener('click',()=>{S.cardForm=null;render();});
+  if($('cf-name')){
+    $('cf-name').addEventListener('keydown',e=>{if(e.key.length===1&&!/[\p{L}\p{N} .,\-'()&#]/u.test(e.key))e.preventDefault()});
+    $('cf-name').addEventListener('input',e=>{const c=sanitizeText(e.target.value,30);S.cardForm.name=c;if(e.target.value!==c)e.target.value=c;});
+  }
+  if($('cf-day')) $('cf-day').addEventListener('change',e=>{S.cardForm.dueDay=+e.target.value;});
+  if($('cf-owed')){ $('cf-owed').addEventListener('keydown',blockNumKeys); $('cf-owed').addEventListener('input',e=>{const c=sanitizeAmt(e.target.value);S.cardForm.owed=c;if(e.target.value!==c)e.target.value=c;}); }
+  if($('cf-save')) $('cf-save').addEventListener('click',async()=>{
+    const f=S.cardForm;
+    const r=f.editId?await Cards.updateCard(f.editId,{name:f.name,dueDay:f.dueDay}):await Cards.addCard({name:f.name,dueDay:f.dueDay,owed:f.owed});
+    if(!r.ok){ f.err=r.errors?Object.values(r.errors)[0]:(cardErrMsg[r.error]||'Could not save the card.'); render(); return; }
+    S.cardForm=null; haptic.ok(); render();
+  });
+  on('.card-del','click',async e=>{
+    const c=(S.cards||[]).find(x=>x.id===e.currentTarget.dataset.id); if(!c) return;
+    if(!confirm('Remove '+c.name+'? Past purchases keep their history.')) return;
+    const r=await Cards.archiveCard(c.id);
+    S.cardMsg=r.ok?'':(cardErrMsg[r.error]||'Could not remove the card.'); render();
   });
 
   on('.view-arc','click',async e=>{
@@ -2824,6 +3005,11 @@ async function arcMonth(){
   const d=S.data,c=calc();
   const key=`budget:archive:${d.year}-${String(d.month+1).padStart(2,'0')}`;
   const label=`${MONTHS[d.month]} ${d.year}`;
+  // Credit cards: freeze this month's card purchases into statements BEFORE the expenses are wiped.
+  // Never blocks the archive; running it twice does not duplicate anything.
+  let cardClosed=[];
+  try{ if(typeof Cards!=='undefined') cardClosed=(await Cards.closeMonth(d.year,d.month)).created||[]; }
+  catch(e){ console.error('card close failed',e); }
   // Save full archive of the current month
   await Store.cset(key,JSON.stringify({...d,label,fixedBillsSnapshot:S.bills}));
   const newIdx=[...S.archives.filter(a=>a.key!==key),
@@ -2840,6 +3026,10 @@ async function arcMonth(){
   S.confirmArc=false;
   await saveData();
   render();
+  if(cardClosed.length){
+    const tot=cardClosed.reduce((t,x)=>t+x.amount,0);
+    ExpSwipe.toast('Card payments saved: '+fmtAbs(tot)+' due next month');
+  }
 }
 
 // ── RESPONSIVE RE-RENDER ──

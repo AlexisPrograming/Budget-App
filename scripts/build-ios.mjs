@@ -58,6 +58,8 @@ const swaps = [
   [/<script src="\/config\.js"><\/script>/, '<script src="config.js"></script>'],
   [/<script src="\/smart-plan-calc\.js"><\/script>/, '<script src="smart-plan-calc.js"></script>'],
   [/<script src="\/onboarding\.js"><\/script>/, '<script src="onboarding.js"></script>'],
+  [/<script src="\/cards-calc\.js"><\/script>/, '<script src="cards-calc.js"></script>'],
+  [/<script src="\/cards\.js"><\/script>/, '<script src="cards.js"></script>'],
 ];
 for (const [pattern, replacement] of swaps) {
   if (!pattern.test(html)) throw new Error(`No encontré en budget.html: ${pattern}`);
@@ -97,7 +99,7 @@ if (!/SUPABASE_URL = "https?:/.test(config)) throw new Error('config.js no trae 
 await writeFile(`${OUT}/config.js`, config);
 
 // ── Static assets ──
-for (const f of ['manifest.json', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon.svg', 'icon-maskable.svg', 'smart-plan-calc.js', 'onboarding.js']) {
+for (const f of ['manifest.json', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon.svg', 'icon-maskable.svg', 'smart-plan-calc.js', 'onboarding.js', 'cards-calc.js', 'cards.js']) {
   if (existsSync(f)) await cp(f, `${OUT}/${f}`);
 }
 
