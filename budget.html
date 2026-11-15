@@ -2096,6 +2096,7 @@ function renderHome(){
       <div style="font-size:12px;color:var(--t2);margin-bottom:18px;line-height:1.6">
         This will archive <strong style="color:var(--text)">${MONTHS[d.month]} ${d.year}</strong> and start a fresh month.<br>
         Fixed bills carry over. Income &amp; expenses reset.
+        ${(()=>{try{const t=(typeof Cards!=='undefined')?Cards.summary(d.year,d.month).building.rows.reduce((x,r)=>x+r.amount,0):0;return t>0?`<br><span style="color:var(--amber)"><i class="ti ti-credit-card" style="font-size:12px"></i> ${fmtAbs(t)} on your cards moves to next month's card payments.</span>`:''}catch{return ''}})()}
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn" id="do-arc" style="flex:1;padding:11px;font-size:13px">Archive &amp; continue</button>
@@ -2955,6 +2956,11 @@ async function arcMonth(){
   const d=S.data,c=calc();
   const key=`budget:archive:${d.year}-${String(d.month+1).padStart(2,'0')}`;
   const label=`${MONTHS[d.month]} ${d.year}`;
+  // Credit cards: freeze this month's card purchases into statements BEFORE the expenses are wiped.
+  // Never blocks the archive; running it twice does not duplicate anything.
+  let cardClosed=[];
+  try{ if(typeof Cards!=='undefined') cardClosed=(await Cards.closeMonth(d.year,d.month)).created||[]; }
+  catch(e){ console.error('card close failed',e); }
   // Save full archive of the current month
   await Store.cset(key,JSON.stringify({...d,label,fixedBillsSnapshot:S.bills}));
   const newIdx=[...S.archives.filter(a=>a.key!==key),
@@ -2971,6 +2977,10 @@ async function arcMonth(){
   S.confirmArc=false;
   await saveData();
   render();
+  if(cardClosed.length){
+    const tot=cardClosed.reduce((t,x)=>t+x.amount,0);
+    ExpSwipe.toast('Card payments saved: '+fmtAbs(tot)+' due next month');
+  }
 }
 
 // ── RESPONSIVE RE-RENDER ──
