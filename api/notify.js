@@ -1,6 +1,7 @@
 // Daily cron function — runs at 9 AM UTC
 // Finds all bills due tomorrow for every user and sends push notifications
 
+import { timingSafeEqual } from 'node:crypto';
 import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
 
@@ -16,9 +17,13 @@ const sb = createClient(
 );
 
 export default async function handler(req, res) {
-  // Vercel cron sends Authorization: Bearer <CRON_SECRET>
-  const auth = req.headers['authorization'] || '';
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Vercel cron sends Authorization: Bearer <CRON_SECRET>.
+  // Fail closed: without a configured secret nobody gets in (otherwise "Bearer undefined" would match).
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return res.status(500).json({ error: 'Server is not configured' });
+  const given = Buffer.from(req.headers['authorization'] || '');
+  const want = Buffer.from(`Bearer ${secret}`);
+  if (given.length !== want.length || !timingSafeEqual(given, want)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

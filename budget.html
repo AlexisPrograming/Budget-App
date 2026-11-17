@@ -3445,10 +3445,13 @@ async function enableNotifications(){
     userVisibleOnly:true,
     applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC)
   });
+  // The server takes the user from the session token, never from the request body.
+  const{data:{session}={}}=await _sb.auth.getSession();
+  if(!session) return;
   await fetch('/api/subscribe',{
     method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({subscription:sub.toJSON(),user_id:currentUser.id})
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+    body:JSON.stringify({subscription:sub.toJSON()})
   });
   updateNotifButton();
 }
