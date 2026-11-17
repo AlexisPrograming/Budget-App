@@ -2482,6 +2482,7 @@ function renderOverview(){
 
 // ── RENDER ──
 let _renderedTab=null;
+let _orbResume=0;
 function render(){
   if(!S.data) return;
   const ct=document.getElementById('content');
@@ -2504,6 +2505,8 @@ function render(){
   if(S.tab!==_renderedTab){
     ct.classList.remove('anim');void ct.offsetHeight;ct.classList.add('anim');
     _renderedTab=S.tab;
+    // Let the liquid rest while the page slides in (the blurred cards sit on top of it), then carry on.
+    try{ Orb.pause(); clearTimeout(_orbResume); _orbResume=setTimeout(()=>{ try{Orb.sync()}catch{} },360); }catch{}
   }
 
   // Mobile nav
@@ -3033,10 +3036,16 @@ async function arcMonth(){
 }
 
 // ── RESPONSIVE RE-RENDER ──
-let _resizeTimer;
+// Redraw on resize only when the layout can actually change: a different width, or crossing the
+// phone/desktop switch. iOS fires resize when the call bar appears or the keyboard opens (height only).
+let _resizeTimer,_lastW=window.innerWidth,_lastDesk=isDesktop();
 window.addEventListener('resize',()=>{
   clearTimeout(_resizeTimer);
-  _resizeTimer=setTimeout(render,120);
+  _resizeTimer=setTimeout(()=>{
+    const w=window.innerWidth,d=isDesktop();
+    if(w===_lastW&&d===_lastDesk) return;
+    _lastW=w;_lastDesk=d;render();
+  },120);
 });
 
 // ── LOGIN SCREEN ──
