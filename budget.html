@@ -19,6 +19,7 @@
 <script src="/onboarding.js"></script>
 <script src="/cards-calc.js"></script>
 <script src="/cards.js"></script>
+<script src="/intro.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=DM+Sans:wght@400;500;600&display=swap">
 <style>
@@ -452,6 +453,12 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 .cc-chip{flex:0 0 auto;height:30px;padding:0 12px;border-radius:15px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--t2);font-family:var(--font);font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
 .cc-chip[aria-pressed=true]{background:rgba(255,176,102,.2);border:1.5px solid var(--amber);color:var(--text)}
 .cc-tag{color:var(--amber);font-weight:600}
+/* launch intro (native app, or ?splash=1): dark cover with the icon, then the liquid animation */
+#intro{display:none;position:fixed;inset:0;z-index:2000;background:#0e0c09;touch-action:none;overflow:hidden}
+html.intro-on #intro{display:block;animation:introGone 0s linear 5s forwards}
+@keyframes introGone{to{visibility:hidden;pointer-events:none}}
+#intro-cv{position:absolute;inset:0;width:100%;height:100%}
+#intro-icon{position:absolute;left:50%;top:50%;width:15.74vh;aspect-ratio:1;border-radius:22%;transform:translate(-50%,-50%);display:block}
 .cd-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
 .cd-row:last-child{border-bottom:none}
 .cd-ic{width:34px;height:34px;border-radius:10px;background:rgba(255,176,102,.14);display:flex;align-items:center;justify-content:center;color:var(--amber);flex-shrink:0}
@@ -740,6 +747,11 @@ input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.85) sepia(.5)
 </style>
 </head>
 <body>
+<div id="intro" aria-hidden="true"><img id="intro-icon" src="/icon-512.png" alt=""><canvas id="intro-cv"></canvas></div>
+<script>
+(function(){try{var C=window.Capacitor,n=!!(C&&C.isNativePlatform&&C.isNativePlatform());
+if(n||/[?&]splash=1(&|$)/.test(location.search)) document.documentElement.classList.add('intro-on');}catch(e){}})();
+</script>
 <div id="shell">
   <!-- Desktop sidebar (rendered by JS) -->
   <nav id="sidebar"></nav>
@@ -754,6 +766,7 @@ input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.85) sepia(.5)
 // ── NATIVE (CAPACITOR) ──
 const IS_NATIVE=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 if(IS_NATIVE) document.documentElement.classList.add('is-native');
+try{ if(typeof Intro!=='undefined') Intro.start(); }catch{}
 const _plug={};
 // The native bridge injects window.Capacitor with nativePromise/addListener/PluginHeaders; the
 // registerPlugin helper only exists in @capacitor/core, which this page does not load.
@@ -3355,7 +3368,7 @@ async function launchApp(user){
 }
 
 async function boot(){
-  if(!_sb){ await load(); try{ if(typeof SmartPlan!=='undefined') SmartPlan.maybeRedirect(); }catch{} render(); return; }
+  if(!_sb){ await load(); try{ if(typeof SmartPlan!=='undefined') SmartPlan.maybeRedirect(); }catch{} render(); try{ Intro.ready(); }catch{} return; }
 
   // Always show login immediately — no blank spinner risk
   renderLogin();
@@ -3366,6 +3379,7 @@ async function boot(){
     if(error) console.error('getSession error',error);
     if(session?.user) await launchApp(session.user);
   }catch(e){ console.error('boot getSession threw',e); }
+  try{ Intro.ready(); }catch{}   // first screen (Home or login) is drawn: the bubble may pop
 
   // Handle future sign-in / sign-out events
   _sb.auth.onAuthStateChange(async(event,session)=>{
