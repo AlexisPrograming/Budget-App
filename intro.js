@@ -123,7 +123,7 @@
   }
 
   // ---------- runtime (browser only) ----------
-  let run = null, earlyReady = false;
+  let run = null, earlyReady = false, status = 'not started';
   const buzz = kind => { try { if (typeof haptic !== 'undefined') haptic[kind](); } catch {} };
 
   function cleanup(el) {
@@ -135,6 +135,7 @@
     const r = run; run = null;
     try { cancelAnimationFrame(r.raf); clearTimeout(r.fail); } catch {}
     cleanup(r.el);
+    if (status === 'running') status = r.tapped ? 'finished: skipped by a tap' : (r.buzzPop ? 'finished: played fully' : 'finished: ended early');
   }
 
   function tick(now) {
@@ -165,9 +166,11 @@
   function start() {
     if (run || typeof document === 'undefined') return false;
     const el = document.getElementById('intro');
-    if (!el || !document.documentElement.classList.contains('intro-on')) return false;
+    if (!el || !document.documentElement.classList.contains('intro-on')) { status = 'off: not the native app (add ?splash=1 on the web to test)'; return false; }
     try {
-      if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { cleanup(el); return false; }
+      // Follows the app's own "Liquid motion" switch (like the bubbles), not the iOS Reduce Motion setting.
+      let pref = null; try { pref = localStorage.getItem('budget:fx'); } catch {}
+      if (pref === 'calm') { status = 'skipped: Liquid motion is set to calm'; cleanup(el); return false; }
       const cv = document.getElementById('intro-cv'), icon = document.getElementById('intro-icon');
       const W = window.innerWidth, H = window.innerHeight, k = Math.min(2, window.devicePixelRatio || 1);
       cv.width = Math.round(W * k); cv.height = Math.round(H * k);
@@ -177,8 +180,9 @@
       if (earlyReady) run.readyAt = 0;
       el.addEventListener('pointerdown', () => { if (run) run.tapped = true; });
       run.raf = requestAnimationFrame(tick);
+      status = 'running';
       return true;
-    } catch (e) { run = null; cleanup(el); return false; }
+    } catch (e) { run = null; status = 'error: ' + String(e && e.message || e).slice(0, 60); cleanup(el); return false; }
   }
 
   // The app has drawn its first screen (Home or the login): the bubble may pop.
@@ -187,5 +191,5 @@
     if (run && run.readyAt == null) run.readyAt = performance.now() - run.t0;
   }
 
-  return { T, frame, draw, start, ready, EARLIEST_POP, MERGE_AT, active: () => !!run };
+  return { T, frame, draw, start, ready, EARLIEST_POP, MERGE_AT, active: () => !!run, status: () => status };
 });

@@ -1600,6 +1600,7 @@ const Orb=(()=>{
       'last x,y,z: '+(info.last?info.last.map(f).join(', '):'none'),
       'tilt now: '+f(st.tilt),
       'reduce motion: '+rm()+(rm()?' (tilt and touch only)':''),
+      'launch intro: '+(typeof Intro!=='undefined'?Intro.status():'missing'),
       'animating: '+!!raf].join('\n');
   }
 
