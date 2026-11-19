@@ -2001,6 +2001,9 @@ function renderHome(){
           <button id="menu-test" style="display:none;width:100%;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
             <i class="ti ti-bell-ringing" style="font-size:16px;color:var(--amber)"></i><span>Send test reminder</span>
           </button>
+          <button id="menu-intro" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
+            <i class="ti ti-droplet-half-2" style="font-size:16px;color:var(--amber)"></i><span>Replay launch animation</span>
+          </button>
           <button id="menu-update" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
             <i class="ti ti-refresh" id="menu-update-icon" style="font-size:16px;color:var(--amber)"></i><span id="menu-update-label">Update app</span>
           </button>
@@ -3012,6 +3015,7 @@ function bind(){
   if($('rem-on'))      $('rem-on').addEventListener('click',()=>{ Reminders.enable().then(()=>render()); });
   if($('rem-later'))   $('rem-later').addEventListener('click',()=>{ Reminders.dismissCard(); render(); });
   if($('menu-update')) $('menu-update').addEventListener('click',forceUpdate);
+  if($('menu-intro'))  $('menu-intro').addEventListener('click',()=>{ let ok=false; try{ ok=Intro.replay(); }catch{} if(!ok) ExpSwipe.toast('Could not play it: '+(typeof Intro!=='undefined'?Intro.status():'intro.js not loaded')); });
 
   // Update notification button state after every render
   updateNotifButton?.();

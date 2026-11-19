@@ -164,14 +164,15 @@
   }
 
   // Shown only when <html> has .intro-on (native app, or ?splash=1 for testing). Reduce Motion skips it.
-  function start() {
+  function start(opts) {
     if (run || typeof document === 'undefined') return false;
+    const force = !!(opts && opts.force);
     const el = document.getElementById('intro');
     if (!el || !document.documentElement.classList.contains('intro-on')) { status = 'off: not the native app (add ?splash=1 on the web to test)'; return false; }
     try {
       // Follows the app's own "Liquid motion" switch (like the bubbles), not the iOS Reduce Motion setting.
       let pref = null; try { pref = localStorage.getItem('budget:fx'); } catch {}
-      if (pref === 'calm') { status = 'skipped: Liquid motion is set to calm'; cleanup(el); return false; }
+      if (pref === 'calm' && !force) { status = 'skipped: Liquid motion is set to calm'; cleanup(el); return false; }
       const cv = document.getElementById('intro-cv'), icon = document.getElementById('intro-icon');
       const W = window.innerWidth, H = window.innerHeight, k = Math.min(2, window.devicePixelRatio || 1);
       cv.width = Math.round(W * k); cv.height = Math.round(H * k);
@@ -192,5 +193,23 @@
     if (run && run.readyAt == null) run.readyAt = performance.now() - run.t0;
   }
 
-  return { T, frame, draw, start, ready, EARLIEST_POP, MERGE_AT, active: () => !!run, status: () => status };
+  // Menu button: play it again on demand (also works when the cover was already removed). Ignores the calm switch.
+  function replay() {
+    if (run || typeof document === 'undefined') return false;
+    try {
+      if (!document.getElementById('intro')) {
+        const el = document.createElement('div');
+        el.id = 'intro'; el.setAttribute('aria-hidden', 'true');
+        el.innerHTML = '<img id="intro-icon" src="/icon-512.png" alt=""><canvas id="intro-cv"></canvas>';
+        document.body.appendChild(el);
+      }
+      document.documentElement.classList.add('intro-on');
+      earlyReady = true;
+      const el = document.getElementById('intro');
+      el.style.cssText = ''; el.style.backgroundColor = 'rgb(14,12,9)';
+      return start({ force: true });
+    } catch (e) { status = 'replay error: ' + String(e && e.message || e).slice(0, 60); cleanup(); return false; }
+  }
+
+  return { T, frame, draw, start, replay, ready, EARLIEST_POP, MERGE_AT, active: () => !!run, status: () => status };
 });
