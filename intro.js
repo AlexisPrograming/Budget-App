@@ -136,6 +136,7 @@
     try { cancelAnimationFrame(r.raf); clearTimeout(r.fail); } catch {}
     cleanup(r.el);
     if (status === 'running') status = r.tapped ? 'finished: skipped by a tap' : (r.buzzPop ? 'finished: played fully' : 'finished: ended early');
+    try { console.log('[intro] ' + status + ' (' + Math.round(performance.now() - r.t0) + ' ms)'); } catch {}
   }
 
   function tick(now) {

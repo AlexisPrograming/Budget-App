@@ -767,6 +767,7 @@ if(n||/[?&]splash=1(&|$)/.test(location.search)) document.documentElement.classL
 const IS_NATIVE=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 if(IS_NATIVE) document.documentElement.classList.add('is-native');
 try{ if(typeof Intro!=='undefined') Intro.start(); }catch{}
+try{ console.log('[intro] after start(): '+(typeof Intro!=='undefined'?Intro.status():'intro.js NOT LOADED')+' | native='+IS_NATIVE+' | cover='+!!document.getElementById('intro')+' | class='+document.documentElement.classList.contains('intro-on')+' | h='+window.innerHeight); }catch{}
 const _plug={};
 // The native bridge injects window.Capacitor with nativePromise/addListener/PluginHeaders; the
 // registerPlugin helper only exists in @capacitor/core, which this page does not load.
