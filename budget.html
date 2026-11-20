@@ -1914,7 +1914,7 @@ const Reminders=(()=>{
     const on=get(KEY)==='on',l=document.getElementById('menu-notif-label'),i=document.getElementById('menu-bell-icon');
     if(l) l.textContent=avail==='no'?'Reminders: unavailable':avail==='stuck'?'Reminders: no answer':on?'Reminders: on':'Reminders: off';
     const t=document.getElementById('menu-test'); if(t) t.style.display=on?'flex':'none';
-    const fx=document.getElementById('menu-fx'); if(fx){ fx.style.display=Orb.systemReduced()?'flex':'none'; const fl=document.getElementById('menu-fx-label'); if(fl) fl.textContent=Orb.fxFull()?'Liquid motion: full':'Liquid motion: calm'; }
+    const fx=document.getElementById('menu-fx'); if(fx){ fx.style.display='flex'; const fl=document.getElementById('menu-fx-label'); if(fl) fl.textContent=Orb.fxFull()?'Liquid motion: full':'Liquid motion: calm'; }
     if(i) i.className='ti '+(on?'ti-bell-ringing':'ti-bell-off');
   }
   function cardHtml(){

@@ -170,9 +170,7 @@
     const el = document.getElementById('intro');
     if (!el || !document.documentElement.classList.contains('intro-on')) { status = 'off: not the native app (add ?splash=1 on the web to test)'; return false; }
     try {
-      // Follows the app's own "Liquid motion" switch (like the bubbles), not the iOS Reduce Motion setting.
-      let pref = null; try { pref = localStorage.getItem('budget:fx'); } catch {}
-      if (pref === 'calm' && !force) { status = 'skipped: Liquid motion is set to calm'; cleanup(el); return false; }
+      // Plays on every cold start. It does not follow "Liquid motion" or the iOS Reduce Motion setting; a tap skips it.
       const cv = document.getElementById('intro-cv'), icon = document.getElementById('intro-icon');
       const W = window.innerWidth, H = window.innerHeight, k = Math.min(2, window.devicePixelRatio || 1);
       cv.width = Math.round(W * k); cv.height = Math.round(H * k);
