@@ -1,4 +1,4 @@
-const CACHE = 'budget-v39';
+const CACHE = 'budget-v44';
 
 const PRECACHE = [
   '/',
@@ -14,6 +14,7 @@ const PRECACHE = [
   '/onboarding.js',
   '/cards-calc.js',
   '/cards.js',
+  '/intro.js',
 ];
 
 // Only cache local app files — never external APIs or CDNs

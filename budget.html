@@ -19,6 +19,7 @@
 <script src="/onboarding.js"></script>
 <script src="/cards-calc.js"></script>
 <script src="/cards.js"></script>
+<script src="/intro.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=DM+Sans:wght@400;500;600&display=swap">
 <style>
@@ -452,6 +453,12 @@ label{display:block;font-size:11px;color:var(--t2);margin-bottom:5px;font-weight
 .cc-chip{flex:0 0 auto;height:30px;padding:0 12px;border-radius:15px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--t2);font-family:var(--font);font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
 .cc-chip[aria-pressed=true]{background:rgba(255,176,102,.2);border:1.5px solid var(--amber);color:var(--text)}
 .cc-tag{color:var(--amber);font-weight:600}
+/* launch intro (native app, or ?splash=1): dark cover with the icon, then the liquid animation */
+#intro{display:none;position:fixed;inset:0;z-index:2000;background:#0e0c09;touch-action:none;overflow:hidden}
+html.intro-on #intro{display:block;animation:introGone 0s linear 5s forwards}
+@keyframes introGone{to{visibility:hidden;pointer-events:none}}
+#intro-cv{position:absolute;inset:0;width:100%;height:100%}
+#intro-icon{position:absolute;left:50%;top:50%;width:15.74vh;aspect-ratio:1;border-radius:22%;transform:translate(-50%,-50%);display:block}
 .cd-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
 .cd-row:last-child{border-bottom:none}
 .cd-ic{width:34px;height:34px;border-radius:10px;background:rgba(255,176,102,.14);display:flex;align-items:center;justify-content:center;color:var(--amber);flex-shrink:0}
@@ -740,6 +747,11 @@ input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.85) sepia(.5)
 </style>
 </head>
 <body>
+<div id="intro" aria-hidden="true"><img id="intro-icon" src="/icon-512.png" alt=""><canvas id="intro-cv"></canvas></div>
+<script>
+(function(){try{var C=window.Capacitor,n=!!(C&&C.isNativePlatform&&C.isNativePlatform());
+if(n||/[?&]splash=1(&|$)/.test(location.search)) document.documentElement.classList.add('intro-on');}catch(e){}})();
+</script>
 <div id="shell">
   <!-- Desktop sidebar (rendered by JS) -->
   <nav id="sidebar"></nav>
@@ -754,6 +766,8 @@ input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.85) sepia(.5)
 // ── NATIVE (CAPACITOR) ──
 const IS_NATIVE=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 if(IS_NATIVE) document.documentElement.classList.add('is-native');
+try{ if(typeof Intro!=='undefined') Intro.start(); }catch{}
+try{ console.log('[intro] after start(): '+(typeof Intro!=='undefined'?Intro.status():'intro.js NOT LOADED')+' | native='+IS_NATIVE+' | cover='+!!document.getElementById('intro')+' | class='+document.documentElement.classList.contains('intro-on')+' | h='+window.innerHeight); }catch{}
 const _plug={};
 // The native bridge injects window.Capacitor with nativePromise/addListener/PluginHeaders; the
 // registerPlugin helper only exists in @capacitor/core, which this page does not load.
@@ -1587,6 +1601,7 @@ const Orb=(()=>{
       'last x,y,z: '+(info.last?info.last.map(f).join(', '):'none'),
       'tilt now: '+f(st.tilt),
       'reduce motion: '+rm()+(rm()?' (tilt and touch only)':''),
+      'launch intro: '+(typeof Intro!=='undefined'?Intro.status():'missing'),
       'animating: '+!!raf].join('\n');
   }
 
@@ -1899,7 +1914,7 @@ const Reminders=(()=>{
     const on=get(KEY)==='on',l=document.getElementById('menu-notif-label'),i=document.getElementById('menu-bell-icon');
     if(l) l.textContent=avail==='no'?'Reminders: unavailable':avail==='stuck'?'Reminders: no answer':on?'Reminders: on':'Reminders: off';
     const t=document.getElementById('menu-test'); if(t) t.style.display=on?'flex':'none';
-    const fx=document.getElementById('menu-fx'); if(fx){ fx.style.display=Orb.systemReduced()?'flex':'none'; const fl=document.getElementById('menu-fx-label'); if(fl) fl.textContent=Orb.fxFull()?'Liquid motion: full':'Liquid motion: calm'; }
+    const fx=document.getElementById('menu-fx'); if(fx){ fx.style.display='flex'; const fl=document.getElementById('menu-fx-label'); if(fl) fl.textContent=Orb.fxFull()?'Liquid motion: full':'Liquid motion: calm'; }
     if(i) i.className='ti '+(on?'ti-bell-ringing':'ti-bell-off');
   }
   function cardHtml(){
@@ -1985,6 +2000,9 @@ function renderHome(){
           </button>
           <button id="menu-test" style="display:none;width:100%;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
             <i class="ti ti-bell-ringing" style="font-size:16px;color:var(--amber)"></i><span>Send test reminder</span>
+          </button>
+          <button id="menu-intro" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
+            <i class="ti ti-droplet-half-2" style="font-size:16px;color:var(--amber)"></i><span>Replay launch animation</span>
           </button>
           <button id="menu-update" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:none;border:none;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">
             <i class="ti ti-refresh" id="menu-update-icon" style="font-size:16px;color:var(--amber)"></i><span id="menu-update-label">Update app</span>
@@ -2997,6 +3015,7 @@ function bind(){
   if($('rem-on'))      $('rem-on').addEventListener('click',()=>{ Reminders.enable().then(()=>render()); });
   if($('rem-later'))   $('rem-later').addEventListener('click',()=>{ Reminders.dismissCard(); render(); });
   if($('menu-update')) $('menu-update').addEventListener('click',forceUpdate);
+  if($('menu-intro'))  $('menu-intro').addEventListener('click',()=>{ let ok=false; try{ ok=Intro.replay(); }catch{} if(!ok) ExpSwipe.toast('Could not play it: '+(typeof Intro!=='undefined'?Intro.status():'intro.js not loaded')); });
 
   // Update notification button state after every render
   updateNotifButton?.();
@@ -3355,7 +3374,7 @@ async function launchApp(user){
 }
 
 async function boot(){
-  if(!_sb){ await load(); try{ if(typeof SmartPlan!=='undefined') SmartPlan.maybeRedirect(); }catch{} render(); return; }
+  if(!_sb){ await load(); try{ if(typeof SmartPlan!=='undefined') SmartPlan.maybeRedirect(); }catch{} render(); try{ Intro.ready(); }catch{} return; }
 
   // Always show login immediately — no blank spinner risk
   renderLogin();
@@ -3366,6 +3385,7 @@ async function boot(){
     if(error) console.error('getSession error',error);
     if(session?.user) await launchApp(session.user);
   }catch(e){ console.error('boot getSession threw',e); }
+  try{ Intro.ready(); }catch{}   // first screen (Home or login) is drawn: the bubble may pop
 
   // Handle future sign-in / sign-out events
   _sb.auth.onAuthStateChange(async(event,session)=>{
